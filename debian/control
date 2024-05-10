@@ -1,0 +1,15 @@
+Source: mission-center
+Section: utils
+Priority: optional
+Maintainer: Slimbook <dev@slimbook.es>
+Build-Depends: debhelper (>=10), build-essential, curl, git, gettext, python3-pip, libadwaita-1-dev, python3-gi, libudev-dev, libdrm-dev, libgbm-dev, libdbus-1-dev, desktop-file-utils, meson, cargo
+Standards-Version: 3.9.7
+Homepage: https://gitlab.com/mission-center-devs/mission-center
+
+Package: mission-center
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: System monitor
+ Monitor your CPU, Memory, Disk, Network and GPU usage.
+
+
