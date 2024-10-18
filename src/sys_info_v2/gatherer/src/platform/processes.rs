@@ -18,6 +18,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use std::collections::HashMap;
+
 use dbus::arg::{Append, Arg};
 
 /// State of a running process
@@ -72,11 +74,11 @@ pub trait ProcessesExt<'a>: Default + Append + Arg {
     /// the underlying OS
     fn refresh_cache(&mut self);
 
-    /// Implementation specific understanding of whether the cache is too old to be relevant
-    fn is_cache_stale(&self) -> bool;
-
     /// Return the (cached) list of processes
-    fn process_list(&'a self) -> &'a std::collections::HashMap<u32, Self::P>;
+    fn process_list(&'a self) -> &'a HashMap<u32, Self::P>;
+
+    /// Return the (cached) mutable list of processes
+    fn process_list_mut(&'a mut self) -> &'a mut HashMap<u32, Self::P>;
 
     /// Ask a process to terminate
     ///

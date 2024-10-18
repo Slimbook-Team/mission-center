@@ -4,7 +4,6 @@ project_path = 'src' / 'sys_info_v2' / project_name
 libdrm = dependency('libdrm', required: true)
 libegl = dependency('egl', required: true)
 libgbm = dependency('gbm', required: true)
-libdbus = dependency('dbus-1', required: true)
 
 patch_exe = find_program('patch')
 

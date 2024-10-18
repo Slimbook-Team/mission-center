@@ -1,16 +1,17 @@
-image: "ubuntu:24.04"
+image: "ubuntu:24.10"
 
 stages:
   - build
+  - portable-build
   - package
 
 build-job:
   stage: build
   script:
     - rm -rf /etc/apt/sources.list.d
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse' > /etc/apt/sources.list
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse' >> /etc/apt/sources.list
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular main restricted universe multiverse' > /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-updates main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-security main restricted universe multiverse' >> /etc/apt/sources.list
 
     - apt-get update && apt-get dist-upgrade -y
     - apt-get install -y build-essential curl git gettext python3-pip libadwaita-1-dev libdbus-1-dev python3-gi libudev-dev libdrm-dev libgbm-dev desktop-file-utils
@@ -25,20 +26,60 @@ build-job:
     - ninja -C _build
     - glib-compile-schemas --strict data/
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+portable-build-job:
+  stage: portable-build
+  script:
+    - rm -rf /etc/apt/sources.list.d
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular main restricted universe multiverse' > /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-updates main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-security main restricted universe multiverse' >> /etc/apt/sources.list
+
+    - apt-get update && apt-get dist-upgrade -y
+    - apt-get install -y ca-certificates busybox-static skopeo
+
+    - skopeo copy docker://ubuntu:20.04 docker-archive:ubuntu.tar:ubuntu:20.04
+    - tar xf ubuntu.tar
+    - rm ubuntu.tar
+
+    - |
+      cat <<EOF > /build.sh
+      rm -rf /bin /boot /etc /lib* /media /mnt /opt /sbin/ /srv /usr /var
+      mkdir /newroot && tar xf *.tar -C /newroot
+      rm /newroot/etc/hosts && rm /newroot/etc/hostname && rm /newroot/etc/resolv.conf
+      cp -ar /newroot/* / && rm -rf /newroot
+
+      set -e
+
+      apt-get update && apt-get dist-upgrade -y
+
+      SRC_PATH=$PWD OUT_PATH=$PWD/portable bash support/build-with-gtk-libadwaita.sh &> logs.txt || (tail -n 500 logs.txt && exit 1)
+      cd portable && tar zcf ../portable.tar.gz *
+
+      EOF
+
+    - busybox sh /build.sh
+
+  artifacts:
+    paths:
+      - 'logs.txt'
+      - 'portable.tar.gz'
+  rules:
+    - if: $PORTABLE_BUILD != null
 
 flatpak-job:
   stage: package
   script:
     - rm -rf /etc/apt/sources.list.d
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse' > /etc/apt/sources.list
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse' >> /etc/apt/sources.list
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular main restricted universe multiverse' > /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-updates main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-security main restricted universe multiverse' >> /etc/apt/sources.list
 
     - apt-get update && apt-get dist-upgrade -y
     - apt-get install -y build-essential flatpak flatpak-builder
     - flatpak --system remote-add flathub https://flathub.org/repo/flathub.flatpakrepo
-    - flatpak install -y org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08 org.gnome.Platform//46 org.gnome.Sdk//46
+    - flatpak install -y org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.gnome.Platform//47 org.gnome.Sdk//47
 
     - cd flatpak && flatpak-builder --repo=repo --ccache --force-clean build io.missioncenter.MissionCenter.json
     - flatpak build-bundle repo missioncenter.flatpak io.missioncenter.MissionCenter
@@ -46,35 +87,67 @@ flatpak-job:
     paths:
       - flatpak/missioncenter.flatpak
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: $BUILD_FLATPAK != null
+
+snap-job:
+  stage: package
+  script:
+    - rm -rf /etc/apt/sources.list.d
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular main restricted universe multiverse' > /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-updates main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-security main restricted universe multiverse' >> /etc/apt/sources.list
+
+    - apt-get update && apt-get dist-upgrade -y
+    - apt-get install -y curl ca-certificates
+
+    - curl -LO $PORTABLE_TARBALL
+    - mkdir -p snap/local && cd snap/local && tar xf ../../portable.tar.gz && cd ../..
+
+    - SRC_PATH=$PWD bash support/create-snap.sh
+
+  artifacts:
+    paths:
+      - '**/*.snap'
+  rules:
+    - if: $BUILD_SNAP != null && $PORTABLE_TARBALL != null
 
 appimage-job:
   stage: package
   script:
     - rm -rf /etc/apt/sources.list.d
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse' > /etc/apt/sources.list
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble-updates main restricted universe multiverse' >> /etc/apt/sources.list
-    - echo 'deb http://archive.ubuntu.com/ubuntu noble-security main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular main restricted universe multiverse' > /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-updates main restricted universe multiverse' >> /etc/apt/sources.list
+    - echo 'deb http://archive.ubuntu.com/ubuntu oracular-security main restricted universe multiverse' >> /etc/apt/sources.list
 
     - apt-get update && apt-get dist-upgrade -y
-    - apt-get install -y podman fuse-overlayfs
+    - apt-get install -y ca-certificates busybox-static skopeo
 
-    - update-alternatives --set iptables /usr/sbin/iptables-legacy
-    - mkdir -p ~/.config/containers
-    - echo '[storage.options.overlay]' > ~/.config/containers/storage.conf
-    - echo 'mount_program = "/usr/bin/fuse-overlayfs"' >> ~/.config/containers/storage.conf
-    - cat ~/.config/containers/storage.conf
+    - skopeo copy docker://ubuntu:20.04 docker-archive:ubuntu.tar:ubuntu:20.04
+    - tar xf ubuntu.tar
+    - rm ubuntu.tar
 
-    - podman pull ubuntu:20.04
-    - podman run --arch=x86_64 -itd --name appimage -v $PWD:/src:Z ubuntu:20.04
-    - podman exec appimage /src/appimage/build.sh
+    - |
+      cat <<EOF > /build.sh
+      rm -rf /bin /boot /etc /lib* /media /mnt /opt /sbin/ /srv /usr /var
+      mkdir /newroot && tar xf *.tar -C /newroot
+      rm /newroot/etc/hosts && rm /newroot/etc/hostname && rm /newroot/etc/resolv.conf
+      cp -ar /newroot/* / && rm -rf /newroot
+
+      set -e
+
+      apt-get update && apt-get dist-upgrade -y && apt-get install -y curl ca-certificates
+
+      curl -LO $PORTABLE_TARBALL
+      cd appimage && /usr/bin/tar xf ../portable.tar.gz && cd ..
+
+      RECEIPE_PATH=$PWD/appimage APPDIR_PATH=$PWD/appimage bash support/create-appimage.sh
+
+      EOF
+
+    - busybox sh /build.sh
+
   artifacts:
     paths:
       - 'MissionCenter-x86_64.AppImage'
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes:
-        - "**/Cargo.toml"
-        - "**/meson.build"
-        - "appimage/*"
-        - "resources/ui/**/*"
+    - if: $BUILD_APPIMAGE != null && $PORTABLE_TARBALL != null

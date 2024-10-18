@@ -28,19 +28,19 @@ mod imp {
 
     #[derive(gtk::CompositeTemplate)]
     #[template(resource = "/io/missioncenter/MissionCenter/ui/preferences/window.ui")]
-    pub struct PreferencesWindow {}
+    pub struct PreferencesDialog {}
 
-    impl Default for PreferencesWindow {
+    impl Default for PreferencesDialog {
         fn default() -> Self {
             Self {}
         }
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for PreferencesWindow {
-        const NAME: &'static str = "PreferencesWindow";
-        type Type = super::PreferencesWindow;
-        type ParentType = adw::PreferencesWindow;
+    impl ObjectSubclass for PreferencesDialog {
+        const NAME: &'static str = "PreferencesDialog";
+        type Type = super::PreferencesDialog;
+        type ParentType = adw::PreferencesDialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -51,34 +51,25 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for PreferencesWindow {}
+    impl ObjectImpl for PreferencesDialog {}
 
-    impl WidgetImpl for PreferencesWindow {}
+    impl WidgetImpl for PreferencesDialog {}
 
-    impl WindowImpl for PreferencesWindow {}
+    impl AdwDialogImpl for PreferencesDialog {}
 
-    impl AdwWindowImpl for PreferencesWindow {}
-
-    impl PreferencesWindowImpl for PreferencesWindow {}
+    impl PreferencesDialogImpl for PreferencesDialog {}
 }
 
 glib::wrapper! {
-    pub struct PreferencesWindow(ObjectSubclass<imp::PreferencesWindow>)
-        @extends adw::PreferencesWindow, gtk::Window, gtk::Widget,
+    pub struct PreferencesDialog(ObjectSubclass<imp::PreferencesDialog>)
+        @extends adw::PreferencesDialog, adw::Dialog, gtk::Widget,
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
-impl PreferencesWindow {
-    pub fn new(parent: &gtk::Window, settings: Option<&gio::Settings>) -> Self {
-        let this: Self = unsafe {
-            glib::Object::new_internal(
-                PreferencesWindow::static_type(),
-                &mut [("transient-for", parent.into())],
-            )
-            .downcast()
-            .unwrap()
-        };
-        this.add(&page::PreferencesPage::new(settings));
+impl PreferencesDialog {
+    pub fn new() -> Self {
+        let this: Self = glib::Object::builder().build();
+        this.add(&page::PreferencesPage::new());
 
         this
     }

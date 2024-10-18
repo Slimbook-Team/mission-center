@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+   width="16"
+   height="16"
+   viewBox="0 0 16 16"
+   xmlns:gtk-theme="http://www.gtk.org/theme/">
+   <circle
+       fill="none"
+       fill-opacity="0"
+       stroke="#000000"
+       stroke-width="2"
+       id="path1"
+       cy="8"
+       cx="8"
+       r="7" />
+    <ellipse
+       fill="#000000"
+       id="path2"
+       cx="8.0242186"
+       cy="4.4021592"
+       rx="1.388889"
+       ry="1.4021593" />
+    <rect
+       fill="#000000"
+       id="rect2"
+       width="2.8729897"
+       height="5.7777777"
+       x="6.6353307"
+       y="7.2222228"
+       ry="1.2928454"
+       rx="1.2928454" />
+</svg>

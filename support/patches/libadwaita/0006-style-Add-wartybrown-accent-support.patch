@@ -1,0 +1,217 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Fri, 14 Jun 2024 18:41:04 +0200
+Subject: style: Add wartybrown accent support
+
+---
+ src/adw-accent-color.c                 | 13 +++++++++++--
+ src/adw-accent-color.h                 |  2 ++
+ src/adw-inspector-page.c               |  2 ++
+ src/adw-settings.c                     |  6 +++++-
+ src/stylesheet/_colors.scss            |  1 +
+ src/stylesheet/meson.build             |  2 +-
+ src/stylesheet/yaru_accent_colors.scss |  3 +++
+ tests/test-accent-color.c              | 20 ++++++++++----------
+ 8 files changed, 35 insertions(+), 14 deletions(-)
+
+diff --git a/src/adw-accent-color.c b/src/adw-accent-color.c
+index 89abce0..d41a597 100644
+--- a/src/adw-accent-color.c
++++ b/src/adw-accent-color.c
+@@ -48,7 +48,7 @@ adw_accent_color_to_rgba (AdwAccentColor  self,
+   const char *hex = NULL;
+ 
+   g_return_if_fail (self >= ADW_ACCENT_COLOR_BLUE);
+-  g_return_if_fail (self <= ADW_ACCENT_COLOR_SLATE);
++  g_return_if_fail (self <= ADW_ACCENT_COLOR_SLATE || self == ADW_ACCENT_COLOR_BROWN);
+   g_return_if_fail (rgba != NULL);
+ 
+   if (G_LIKELY (adw_settings_get_yaru_accent (adw_settings_get_default ())))
+@@ -81,6 +81,9 @@ adw_accent_color_to_rgba (AdwAccentColor  self,
+       case ADW_ACCENT_COLOR_SLATE:
+         hex = "#657b69";
+         break;
++      case ADW_ACCENT_COLOR_BROWN:
++        hex = "#b39169";
++        break;
+       default:
+         g_assert_not_reached ();
+       }
+@@ -117,6 +120,9 @@ adw_accent_color_to_rgba (AdwAccentColor  self,
+   case ADW_ACCENT_COLOR_SLATE:
+     hex = "#6f8396";
+     break;
++  case ADW_ACCENT_COLOR_BROWN:
++    hex = "#b39169";
++    break;
+   default:
+     g_assert_not_reached ();
+   }
+@@ -144,7 +150,7 @@ adw_accent_color_to_standalone_rgba (AdwAccentColor  self,
+                                      GdkRGBA        *rgba)
+ {
+   g_return_if_fail (self >= ADW_ACCENT_COLOR_BLUE);
+-  g_return_if_fail (self <= ADW_ACCENT_COLOR_SLATE);
++  g_return_if_fail (self <= ADW_ACCENT_COLOR_SLATE || self == ADW_ACCENT_COLOR_BROWN);
+   g_return_if_fail (rgba != NULL);
+ 
+   dark = !!dark;
+@@ -226,6 +232,9 @@ adw_accent_color_nearest_from_rgba (GdkRGBA *original_color)
+   if (h > 130)
+     return ADW_ACCENT_COLOR_GREEN;
+ 
++  if (h > 55 && c < 0.1)
++    return ADW_ACCENT_COLOR_BROWN;
++
+   if (h > 75.5)
+     return ADW_ACCENT_COLOR_YELLOW;
+ 
+diff --git a/src/adw-accent-color.h b/src/adw-accent-color.h
+index c6251ac..35fbb92 100644
+--- a/src/adw-accent-color.h
++++ b/src/adw-accent-color.h
+@@ -26,6 +26,8 @@ typedef enum {
+   ADW_ACCENT_COLOR_PINK,
+   ADW_ACCENT_COLOR_PURPLE,
+   ADW_ACCENT_COLOR_SLATE,
++
++  ADW_ACCENT_COLOR_BROWN = ADW_ACCENT_COLOR_SLATE + 100,
+ } AdwAccentColor;
+ 
+ ADW_AVAILABLE_IN_1_6
+diff --git a/src/adw-inspector-page.c b/src/adw-inspector-page.c
+index 43b450f..c90b408 100644
+--- a/src/adw-inspector-page.c
++++ b/src/adw-inspector-page.c
+@@ -129,6 +129,8 @@ get_accent_color_name (AdwEnumListItem *item,
+     return g_strdup (_("Purple"));
+   case ADW_ACCENT_COLOR_SLATE:
+     return g_strdup (_("Slate"));
++  case ADW_ACCENT_COLOR_BROWN:
++    return g_strdup (_("Brown"));
+   default:
+     g_assert_not_reached ();
+   }
+diff --git a/src/adw-settings.c b/src/adw-settings.c
+index 774c7fa..5962af1 100644
+--- a/src/adw-settings.c
++++ b/src/adw-settings.c
+@@ -165,9 +165,11 @@ init_debug (AdwSettings *self,
+       self->accent_color = ADW_ACCENT_COLOR_PURPLE;
+     } else if (!g_strcmp0 (env, "slate")) {
+       self->accent_color = ADW_ACCENT_COLOR_SLATE;
++    } else if (!g_strcmp0 (env, "brown")) {
++      self->accent_color = ADW_ACCENT_COLOR_BROWN;
+     } else {
+       g_warning ("Invalid accent color %s (Expected one of: blue, teal, green,"
+-                 "yellow, orange, red, pink, purple, slate)", env);
++                 "yellow, orange, red, pink, purple, slate, brown)", env);
+     }
+   }
+ }
+@@ -315,6 +317,8 @@ compute_yaru_accent_from_system_accent (AdwSettings *self)
+       return "purple";
+     case ADW_ACCENT_COLOR_SLATE:
+       return "sage";
++    case ADW_ACCENT_COLOR_BROWN:
++      return "wartybrown";
+     default:
+       g_return_val_if_reached (NULL);
+   }
+diff --git a/src/stylesheet/_colors.scss b/src/stylesheet/_colors.scss
+index 4accb71..594e28a 100644
+--- a/src/stylesheet/_colors.scss
++++ b/src/stylesheet/_colors.scss
+@@ -13,6 +13,7 @@ $focus_border_opacity: if($contrast == 'high', 80%, 50%);
+   --accent-pink: #d56199;
+   --accent-purple: #9141ac;
+   --accent-slate: #6f8396;
++  --accent-brown: #b39169;
+ 
+   --accent-bg-color: @accent_bg_color;
+   --accent-fg-color: @accent_fg_color;
+diff --git a/src/stylesheet/meson.build b/src/stylesheet/meson.build
+index 41e60f6..f657683 100644
+--- a/src/stylesheet/meson.build
++++ b/src/stylesheet/meson.build
+@@ -14,7 +14,7 @@ if get_option('yaru-accent-colors')
+       'purple',
+       'magenta',
+       'red',
+-      'yellow',
++      'wartybrown',
+   ]
+ 
+   yaru_accent_colors_sassc += configure_file(
+diff --git a/src/stylesheet/yaru_accent_colors.scss b/src/stylesheet/yaru_accent_colors.scss
+index 715d0ab..941b227 100644
+--- a/src/stylesheet/yaru_accent_colors.scss
++++ b/src/stylesheet/yaru_accent_colors.scss
+@@ -54,6 +54,9 @@ $accent-fg-color: white;
+     @define-color accent_color #{$accent_color};
+     $window-bg-color: if($variant == 'light', #FAFAFA, lighten($jet, 8%));
+     $window-fg-color: if($variant == 'light', $inkstone, $porcelain);
++    @if @yaru_accent_color@ == 'wartybrown' and $variant == 'light' {
++        $window-bg-color: #eeeeee;
++    }
+     @define-color window_bg_color #{$window-bg-color};
+     @define-color window_fg_color #{$window-fg-color};
+     :root {
+diff --git a/tests/test-accent-color.c b/tests/test-accent-color.c
+index bf4628e..255d399 100644
+--- a/tests/test-accent-color.c
++++ b/tests/test-accent-color.c
+@@ -90,11 +90,11 @@ test_adw_accent_color_nearest_from_rgba (void)
+   TEST_NEAREST_ACCENT ("#9141ac", ADW_ACCENT_COLOR_PURPLE); /* purple 3 */
+   TEST_NEAREST_ACCENT ("#813d9c", ADW_ACCENT_COLOR_PURPLE); /* purple 4 */
+   TEST_NEAREST_ACCENT ("#613583", ADW_ACCENT_COLOR_PURPLE); /* purple 5 */
+-  TEST_NEAREST_ACCENT ("#cdab8f", ADW_ACCENT_COLOR_ORANGE); /* brown 1 */
+-  TEST_NEAREST_ACCENT ("#b5835a", ADW_ACCENT_COLOR_ORANGE); /* brown 2 */
+-  TEST_NEAREST_ACCENT ("#986a44", ADW_ACCENT_COLOR_ORANGE); /* brown 3 */
+-  TEST_NEAREST_ACCENT ("#865e3c", ADW_ACCENT_COLOR_ORANGE); /* brown 4 */
+-  TEST_NEAREST_ACCENT ("#63452c", ADW_ACCENT_COLOR_ORANGE); /* brown 5 */
++  TEST_NEAREST_ACCENT ("#cdab8f", ADW_ACCENT_COLOR_BROWN); /* brown 1 */
++  TEST_NEAREST_ACCENT ("#b5835a", ADW_ACCENT_COLOR_BROWN); /* brown 2 */
++  TEST_NEAREST_ACCENT ("#986a44", ADW_ACCENT_COLOR_BROWN); /* brown 3 */
++  TEST_NEAREST_ACCENT ("#865e3c", ADW_ACCENT_COLOR_BROWN); /* brown 4 */
++  TEST_NEAREST_ACCENT ("#63452c", ADW_ACCENT_COLOR_BROWN); /* brown 5 */
+   TEST_NEAREST_ACCENT ("#ffffff", ADW_ACCENT_COLOR_SLATE);  /* light 1 */
+   TEST_NEAREST_ACCENT ("#f6f5f4", ADW_ACCENT_COLOR_SLATE);  /* light 2 */
+   TEST_NEAREST_ACCENT ("#deddda", ADW_ACCENT_COLOR_SLATE);  /* light 3 */
+@@ -115,7 +115,7 @@ test_adw_accent_color_nearest_from_rgba (void)
+   TEST_NEAREST_ACCENT ("#ed5353", ADW_ACCENT_COLOR_RED);    /* strawberry */
+   TEST_NEAREST_ACCENT ("#de3e80", ADW_ACCENT_COLOR_PINK);   /* bubblegum */
+   TEST_NEAREST_ACCENT ("#a56de2", ADW_ACCENT_COLOR_PURPLE); /* grape */
+-  TEST_NEAREST_ACCENT ("#8a715e", ADW_ACCENT_COLOR_ORANGE); /* cocoa */
++  TEST_NEAREST_ACCENT ("#8a715e", ADW_ACCENT_COLOR_BROWN);  /* cocoa */
+   TEST_NEAREST_ACCENT ("#667885", ADW_ACCENT_COLOR_SLATE);  /* slate */
+ 
+   /* KDE (light) */
+@@ -144,7 +144,7 @@ test_adw_accent_color_nearest_from_rgba (void)
+ 
+   /* Ubuntu */
+   TEST_NEAREST_ACCENT ("#e95420", ADW_ACCENT_COLOR_ORANGE);
+-  TEST_NEAREST_ACCENT ("#787859", ADW_ACCENT_COLOR_YELLOW); /* bark */
++  TEST_NEAREST_ACCENT ("#787859", ADW_ACCENT_COLOR_BROWN);  /* bark */
+   TEST_NEAREST_ACCENT ("#657b69", ADW_ACCENT_COLOR_SLATE);  /* sage */
+   TEST_NEAREST_ACCENT ("#4b8501", ADW_ACCENT_COLOR_GREEN);  /* olive */
+   TEST_NEAREST_ACCENT ("#03875b", ADW_ACCENT_COLOR_GREEN);  /* viridian */
+@@ -159,7 +159,7 @@ test_adw_accent_color_nearest_from_rgba (void)
+   TEST_NEAREST_ACCENT ("#1f9ede", ADW_ACCENT_COLOR_BLUE);
+   TEST_NEAREST_ACCENT ("#199ca8", ADW_ACCENT_COLOR_TEAL);
+   TEST_NEAREST_ACCENT ("#35a854", ADW_ACCENT_COLOR_GREEN);
+-  TEST_NEAREST_ACCENT ("#c5a07c", ADW_ACCENT_COLOR_ORANGE);
++  TEST_NEAREST_ACCENT ("#c5a07c", ADW_ACCENT_COLOR_BROWN);
+   TEST_NEAREST_ACCENT ("#70737a", ADW_ACCENT_COLOR_SLATE);
+   TEST_NEAREST_ACCENT ("#ff7139", ADW_ACCENT_COLOR_ORANGE);
+   TEST_NEAREST_ACCENT ("#e82127", ADW_ACCENT_COLOR_RED);
+@@ -183,8 +183,8 @@ test_adw_accent_color_nearest_from_rgba (void)
+   TEST_NEAREST_ACCENT ("#68217c", ADW_ACCENT_COLOR_PURPLE);
+   TEST_NEAREST_ACCENT ("#86043a", ADW_ACCENT_COLOR_PINK);
+   TEST_NEAREST_ACCENT ("#78292e", ADW_ACCENT_COLOR_RED);
+-  TEST_NEAREST_ACCENT ("#624000", ADW_ACCENT_COLOR_ORANGE);
+-  TEST_NEAREST_ACCENT ("#534800", ADW_ACCENT_COLOR_YELLOW);
++  TEST_NEAREST_ACCENT ("#624000", ADW_ACCENT_COLOR_BROWN);
++  TEST_NEAREST_ACCENT ("#534800", ADW_ACCENT_COLOR_BROWN);
+   TEST_NEAREST_ACCENT ("#185529", ADW_ACCENT_COLOR_GREEN);
+   TEST_NEAREST_ACCENT ("#554742", ADW_ACCENT_COLOR_SLATE);
+ 

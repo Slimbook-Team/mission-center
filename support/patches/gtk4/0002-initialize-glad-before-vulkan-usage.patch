@@ -1,0 +1,98 @@
+diff --git a/gdk/gdk.c b/gdk/gdk.c
+index 13856d2d30..0c0537edec 100644
+--- a/gdk/gdk.c
++++ b/gdk/gdk.c
+@@ -36,6 +36,10 @@
+ #include "gdkprivate.h"
+ #include <glib/gprintf.h>
+
++#ifdef GDK_RENDERING_VULKAN
++#include <vulkan/vulkan.h>
++#endif
++
+ #include <string.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+@@ -319,6 +323,22 @@ void
+ gdk_pre_parse (void)
+ {
+   GdkFeatures disabled_features;
++  int glad_init_res, disable_vulkan;
++
++  disable_vulkan = true;
++#ifdef GDK_RENDERING_VULKAN
++  disable_vulkan = false;
++
++  glad_init_res = gladLoaderLoadVulkan (
++                 VK_NULL_HANDLE,
++                 VK_NULL_HANDLE,
++                 VK_NULL_HANDLE);
++  if (glad_init_res <= 0)
++    {
++      g_critical ("Failed to initialize GLAD Vulkan loader");
++      disable_vulkan = true;
++    }
++#endif
+
+   gdk_initialized = TRUE;
+
+@@ -337,6 +357,11 @@ gdk_pre_parse (void)
+       gdk_feature_keys,
+       G_N_ELEMENTS (gdk_feature_keys));
+
++  if (disable_vulkan)
++    {
++      disabled_features |= GDK_FEATURE_VULKAN;
++    }
++
+   gdk_features = GDK_ALL_FEATURES & ~disabled_features;
+
+ #ifndef G_HAS_CONSTRUCTORS
+diff --git a/gdk/gdkvulkancontext.c b/gdk/gdkvulkancontext.c
+index 2b07cac88e..0de629cccb 100644
+--- a/gdk/gdkvulkancontext.c
++++ b/gdk/gdkvulkancontext.c
+@@ -1459,6 +1459,14 @@ gdk_display_create_vulkan_device (GdkDisplay  *display,
+             { VK_QUEUE_TRANSFER_BIT, "transfer" },
+             { VK_QUEUE_SPARSE_BINDING_BIT, "sparse binding" }
+           };
++          int glad_init_res;
++
++          glad_init_res = gladLoaderLoadVulkan (display->vk_instance, devices[i], VK_NULL_HANDLE);
++          if (!glad_init_res)
++            {
++              g_critical ("Failed to load Vulkan functions for physical device %u", i);
++              continue;
++            }
+
+           vkGetPhysicalDeviceProperties (devices[i], &props);
+           vkGetPhysicalDeviceQueueFamilyProperties (devices[i], &n_queue_props, NULL);
+@@ -1495,6 +1503,14 @@ gdk_display_create_vulkan_device (GdkDisplay  *display,
+     {
+       GdkVulkanFeatures features, device_features;
+       uint32_t n_queue_props;
++      int glad_init_res;
++
++      glad_init_res = gladLoaderLoadVulkan (display->vk_instance, devices[i], VK_NULL_HANDLE);
++        if (!glad_init_res)
++          {
++            g_critical ("Failed to load Vulkan functions for physical device %u", i);
++            continue;
++          }
+
+       device_features = physical_device_check_features (devices[i]);
+
+@@ -1565,6 +1581,13 @@ gdk_display_create_vulkan_device (GdkDisplay  *display,
+
+               g_ptr_array_unref (device_extensions);
+
++              glad_init_res = gladLoaderLoadVulkan (display->vk_instance, devices[i], display->vk_device);
++              if (!glad_init_res)
++                {
++                  g_critical ("Failed to load Vulkan functions for device %u", i);
++                  continue;
++                }
++
+               display->vk_physical_device = devices[i];
+               vkGetDeviceQueue(display->vk_device, j, 0, &display->vk_queue);
+               display->vk_queue_family_index = j;

@@ -24,7 +24,7 @@ use adw::{prelude::*, subclass::prelude::*};
 use glib::{ParamSpec, Properties, Value};
 use gtk::{gio, glib};
 
-use crate::sys_info_v2::Readings;
+use crate::{app, settings, sys_info_v2::Readings};
 
 mod imp {
     use super::*;
@@ -43,6 +43,12 @@ mod imp {
         #[template_child]
         pub bottom_bar: TemplateChild<adw::ViewSwitcherBar>,
         #[template_child]
+        pub sidebar_edit_mode_enable_all: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub sidebar_edit_mode_disable_all: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub sidebar_edit_mode_reset: TemplateChild<gtk::Button>,
+        #[template_child]
         pub toggle_sidebar_button: TemplateChild<gtk::ToggleButton>,
         #[template_child]
         pub sidebar: TemplateChild<gtk::ListBox>,
@@ -50,6 +56,10 @@ mod imp {
         pub performance_page: TemplateChild<crate::performance_page::PerformancePage>,
         #[template_child]
         pub apps_page: TemplateChild<crate::apps_page::AppsPage>,
+        #[template_child]
+        pub services_stack_page: TemplateChild<adw::ViewStackPage>,
+        #[template_child]
+        pub services_page: TemplateChild<crate::services_page::ServicesPage>,
         #[template_child]
         pub header_bar: TemplateChild<adw::HeaderBar>,
         #[template_child]
@@ -72,14 +82,19 @@ mod imp {
         #[property(get)]
         apps_page_active: Cell<bool>,
         #[property(get)]
+        services_page_active: Cell<bool>,
+        #[property(get)]
         user_hid_sidebar: Cell<bool>,
+
+        #[property(name = "info-button-visible", get = Self::info_button_visible, type = bool)]
+        _info_button_visible: [u8; 0],
+        #[property(name = "search-button-visible", get = Self::search_button_visible, type = bool)]
+        _search_button_visible: [u8; 0],
 
         #[property(get, set)]
         summary_mode: Cell<bool>,
         #[property(get, set)]
         collapse_threshold: Cell<i32>,
-
-        pub settings: Cell<Option<gio::Settings>>,
     }
 
     impl Default for MissionCenterWindow {
@@ -89,10 +104,15 @@ mod imp {
                 split_view: TemplateChild::default(),
                 window_content: TemplateChild::default(),
                 bottom_bar: TemplateChild::default(),
+                sidebar_edit_mode_enable_all: TemplateChild::default(),
+                sidebar_edit_mode_disable_all: TemplateChild::default(),
+                sidebar_edit_mode_reset: TemplateChild::default(),
                 toggle_sidebar_button: TemplateChild::default(),
                 sidebar: TemplateChild::default(),
                 performance_page: TemplateChild::default(),
                 apps_page: TemplateChild::default(),
+                services_stack_page: TemplateChild::default(),
+                services_page: TemplateChild::default(),
                 header_bar: TemplateChild::default(),
                 header_stack: TemplateChild::default(),
                 header_tabs: TemplateChild::default(),
@@ -104,13 +124,29 @@ mod imp {
 
                 performance_page_active: Cell::new(true),
                 apps_page_active: Cell::new(false),
+                services_page_active: Cell::new(false),
                 user_hid_sidebar: Cell::new(false),
+
+                _info_button_visible: [0; 0],
+                _search_button_visible: [0; 0],
 
                 summary_mode: Cell::new(false),
                 collapse_threshold: Cell::new(0),
-
-                settings: Cell::new(None),
             }
+        }
+    }
+
+    impl MissionCenterWindow {
+        fn info_button_visible(&self) -> bool {
+            if self.performance_page.is_bound() {
+                self.performance_page_active.get() && self.performance_page.info_button_visible()
+            } else {
+                false
+            }
+        }
+
+        fn search_button_visible(&self) -> bool {
+            self.apps_page_active.get() || self.services_page_active.get()
         }
     }
 
@@ -119,6 +155,7 @@ mod imp {
             use glib::g_critical;
 
             let visible_child_name = self.stack.visible_child_name().unwrap_or("".into());
+
             if visible_child_name == "performance-page" {
                 if self.performance_page_active.get() {
                     return;
@@ -129,7 +166,11 @@ mod imp {
 
                 self.apps_page_active.set(false);
                 self.obj().notify_apps_page_active();
-            } else if visible_child_name == "apps-page" {
+
+                self.services_page_active.set(false);
+                self.obj().notify_services_page_active();
+            }
+            if visible_child_name == "apps-page" {
                 if self.apps_page_active.get() {
                     return;
                 }
@@ -139,19 +180,35 @@ mod imp {
 
                 self.apps_page_active.set(true);
                 self.obj().notify_apps_page_active();
+
+                self.services_page_active.set(false);
+                self.obj().notify_services_page_active();
+            } else if visible_child_name == "services-page" {
+                if self.services_page_active.get() {
+                    return;
+                }
+
+                self.performance_page_active.set(false);
+                self.obj().notify_performance_page_active();
+
+                self.apps_page_active.set(false);
+                self.obj().notify_apps_page_active();
+
+                self.services_page_active.set(true);
+                self.obj().notify_services_page_active();
             }
 
-            if let Some(settings) = self.settings.take() {
-                settings
-                    .set_string("window-selected-page", &visible_child_name)
-                    .unwrap_or_else(|_| {
-                        g_critical!(
-                            "MissionCenter",
-                            "Failed to set window-selected-page setting"
-                        );
-                    });
-                self.settings.set(Some(settings));
-            }
+            self.obj().notify_info_button_visible();
+            self.obj().notify_search_button_visible();
+
+            settings!()
+                .set_string("window-selected-page", &visible_child_name)
+                .unwrap_or_else(|_| {
+                    g_critical!(
+                        "MissionCenter",
+                        "Failed to set window-selected-page setting"
+                    );
+                });
         }
     }
 
@@ -159,26 +216,35 @@ mod imp {
         fn configure_actions(&self) {
             let toggle_search =
                 gio::SimpleAction::new_stateful("toggle-search", None, &false.to_variant());
-            toggle_search.connect_activate(glib::clone!(@weak self as this => move |action, _| {
-                let new_state = !action.state().and_then(|v|v.get::<bool>()).unwrap_or(true);
-                action.set_state(&new_state.to_variant());
-                this.search_button.set_active(new_state);
+            toggle_search.connect_activate({
+                let this = self.obj().downgrade();
+                move |action, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
 
-                if new_state {
-                    this.header_stack.set_visible_child_name("search-entry");
-                    this.header_search_entry.grab_focus();
-                    this.header_search_entry.select_region(-1, -1);
+                    let new_state = !action.state().and_then(|v| v.get::<bool>()).unwrap_or(true);
+                    action.set_state(&new_state.to_variant());
+                    this.search_button.set_active(new_state);
 
-                    this.header_stack.set_visible(true);
-                } else {
-                    if this.window_width_below_threshold() {
-                        this.header_stack.set_visible(false);
+                    if new_state {
+                        this.header_stack.set_visible_child_name("search-entry");
+                        this.header_search_entry.grab_focus();
+                        this.header_search_entry.select_region(-1, -1);
+
+                        this.header_stack.set_visible(true);
+                    } else {
+                        if this.window_width_below_threshold() {
+                            this.header_stack.set_visible(false);
+                        }
+
+                        this.header_search_entry.set_text("");
+                        this.header_stack.set_visible_child_name("view-switcher");
                     }
-
-                    this.header_search_entry.set_text("");
-                    this.header_stack.set_visible_child_name("view-switcher");
                 }
-            }));
+            });
             self.obj().add_action(&toggle_search);
         }
 
@@ -211,10 +277,13 @@ mod imp {
         type ParentType = adw::ApplicationWindow;
 
         fn class_init(klass: &mut Self::Class) {
-            use crate::{apps_page::AppsPage, performance_page::PerformancePage};
+            use crate::{
+                apps_page::AppsPage, performance_page::PerformancePage, services_page::ServicesPage,
+            };
 
             PerformancePage::ensure_type();
             AppsPage::ensure_type();
+            ServicesPage::ensure_type();
 
             klass.bind_template();
         }
@@ -242,50 +311,144 @@ mod imp {
 
             self.parent_constructed();
 
-            if let Some(app) = crate::MissionCenterApplication::default_instance() {
-                self.settings.set(app.settings());
-            }
-
             self.configure_actions();
 
-            idle_add_local_once(clone!(@weak self as this => move || {
-                this.update_active_page();
-            }));
+            idle_add_local_once({
+                let this = self.obj().downgrade();
+                move || {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        this.update_active_page();
+                    }
+                }
+            });
 
-            self.sidebar
-                .connect_row_activated(clone!(@weak self as this => move |_, _| {
-                    this.stack.set_visible_child_name("performance-page");
-                }));
+            self.sidebar.connect_row_activated({
+                let this = self.obj().downgrade();
+                move |_, _| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        this.stack.set_visible_child_name("apps-page");
+                        this.stack.set_visible_child_name("performance-page");
+                    }
+                }
+            });
 
-            self.stack
-                .connect_visible_child_notify(clone!(@weak self as this => move |_| {
+            self.sidebar_edit_mode_enable_all.connect_clicked({
+                let this = self.obj().downgrade();
+                move |_| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        this.performance_page.sidebar_enable_all();
+                    }
+                }
+            });
+
+            self.sidebar_edit_mode_disable_all.connect_clicked({
+                let this = self.obj().downgrade();
+                move |_| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        this.performance_page.sidebar_disable_all();
+                    }
+                }
+            });
+
+            self.sidebar_edit_mode_reset.connect_clicked({
+                let this = self.obj().downgrade();
+                move |_| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        this.performance_page.sidebar_reset_to_default();
+                    }
+                }
+            });
+
+            self.stack.connect_visible_child_notify({
+                let this = self.obj().downgrade();
+                move |_| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
                     if this.search_button.is_active() {
-                        let _ = WidgetExt::activate_action(this.obj().as_ref(), "win.toggle-search", None);
+                        let _ = WidgetExt::activate_action(
+                            this.obj().as_ref(),
+                            "win.toggle-search",
+                            None,
+                        );
                     }
                     this.update_active_page();
-                }));
+                }
+            });
 
-            self.header_search_entry
-                .set_key_capture_widget(Some(self.obj().upcast_ref::<gtk::Widget>()));
-
-            self.header_search_entry
-                .connect_search_started(clone!(@weak self as this => move |_| {
-                    if !this.apps_page_active.get() {
-                        return;
+            let evt_ctrl_key = gtk::EventControllerKey::new();
+            evt_ctrl_key.connect_key_pressed({
+                let this = self.obj().downgrade();
+                move |controller, _, _, _| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        if this.services_page_active.get() && this.services_page.dialog_visible() {
+                            controller.forward(&this.services_page.get());
+                        } else {
+                            controller.forward(&this.header_search_entry.get());
+                        }
                     }
 
-                    let _ = WidgetExt::activate_action(this.obj().as_ref(), "win.toggle-search", None);
-                }));
+                    Propagation::Proceed
+                }
+            });
+            self.obj().add_controller(evt_ctrl_key);
 
             self.header_search_entry
-                .connect_stop_search(clone!(@weak self as this => move |_| {
-                    let _ = WidgetExt::activate_action(this.obj().as_ref(), "win.toggle-search", None);
-                }));
+                .set_key_capture_widget(Some(&self.header_search_entry.get()));
+
+            self.header_search_entry.connect_search_started({
+                let this = self.obj().downgrade();
+                move |_| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+
+                        if this.apps_page_active.get() || this.services_page_active.get() {
+                            let _ = WidgetExt::activate_action(
+                                this.obj().as_ref(),
+                                "win.toggle-search",
+                                None,
+                            );
+                        }
+                    }
+                }
+            });
+
+            self.header_search_entry.connect_stop_search({
+                let this = self.obj().downgrade();
+                move |_| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        if this.apps_page_active.get() || this.services_page_active.get() {
+                            let _ = WidgetExt::activate_action(
+                                this.obj().as_ref(),
+                                "win.toggle-search",
+                                None,
+                            );
+                        }
+                    }
+                }
+            });
 
             // Triggered when user interacts with the sidebar toggle button
             // via any means (clicking, keyboard shortcut, etc.)
-            self.toggle_sidebar_button.connect_clicked(
-                clone!(@weak self as this => move |button| {
+            self.toggle_sidebar_button.connect_clicked({
+                let this = self.obj().downgrade();
+                move |button| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
                     let user_hid_sidebar = !button.is_active();
                     if user_hid_sidebar != this.user_hid_sidebar.get() {
                         this.user_hid_sidebar.set(user_hid_sidebar);
@@ -296,8 +459,8 @@ mod imp {
                         }
                         this.obj().notify_user_hid_sidebar();
                     }
-                }),
-            );
+                }
+            });
 
             self.breakpoint.set_condition(Some(
                 &adw::BreakpointCondition::parse(&format!(
@@ -306,29 +469,56 @@ mod imp {
                 ))
                 .unwrap(),
             ));
-            self.breakpoint
-                .connect_apply(clone!(@weak self as this => move |_| {
+            self.breakpoint.connect_apply({
+                let this = self.obj().downgrade();
+                move |_| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
                     this.bottom_bar.set_reveal(true);
                     if !this.search_button.is_active() {
                         this.header_stack.set_visible(false);
                     }
+
+                    this.services_page.collapse();
 
                     if !this.performance_page_active.get() {
                         return;
                     }
 
                     this.split_view.set_collapsed(this.should_hide_sidebar());
-                }));
-            self.breakpoint
-                .connect_unapply(clone!(@weak self as this => move |_| {
+                }
+            });
+            self.breakpoint.connect_unapply({
+                let this = self.obj().downgrade();
+                move |_| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
                     this.header_stack.set_visible(true);
                     this.bottom_bar.set_reveal(false);
 
-                    this.split_view.set_collapsed(this.should_hide_sidebar());
-                }));
+                    this.services_page.expand();
 
-            self.obj().connect_performance_page_active_notify(
-                clone!(@weak self as this => move |_| {
+                    this.split_view.set_collapsed(this.should_hide_sidebar());
+                }
+            });
+
+            self.obj().connect_performance_page_active_notify({
+                let this = self.obj().downgrade();
+                move |_| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
                     if this.performance_page_active.get() {
                         let should_hide_sidebar = this.should_hide_sidebar();
                         this.split_view.set_show_sidebar(!should_hide_sidebar);
@@ -337,18 +527,36 @@ mod imp {
                         this.split_view.set_show_sidebar(false);
                         this.split_view.set_collapsed(true);
                     }
-                }),
-            );
+                }
+            });
 
-            self.obj()
-                .connect_summary_mode_notify(clone!(@weak self as this => move |_| {
+            self.obj().connect_summary_mode_notify({
+                let this = self.obj().downgrade();
+                move |_| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
                     if this.summary_mode.get() {
                         this.split_view.set_show_sidebar(false);
                     } else if !this.window_width_below_threshold() {
                         this.split_view.set_collapsed(false);
-                        this.split_view.set_show_sidebar(!this.user_hid_sidebar.get());
+                        this.split_view
+                            .set_show_sidebar(!this.user_hid_sidebar.get());
                     }
-                }));
+                }
+            });
+
+            self.performance_page.connect_info_button_visible_notify({
+                let this = self.obj().downgrade();
+                move |_| {
+                    if let Some(this) = this.upgrade() {
+                        this.notify_info_button_visible();
+                    }
+                }
+            });
         }
     }
 
@@ -356,11 +564,8 @@ mod imp {
         fn realize(&self) {
             self.parent_realize();
 
-            if let Some(settings) = self.settings.take() {
-                self.stack
-                    .set_visible_child_name(settings.string("window-selected-page").as_str());
-                self.settings.set(Some(settings));
-            }
+            self.stack
+                .set_visible_child_name(settings!().string("window-selected-page").as_str());
         }
     }
 
@@ -380,7 +585,7 @@ glib::wrapper! {
 impl MissionCenterWindow {
     pub fn new<P: IsA<gtk::Application>>(
         application: &P,
-        settings: Option<&gio::Settings>,
+        settings: &gio::Settings,
         sys_info: &crate::sys_info_v2::SysInfoV2,
     ) -> Self {
         use gtk::glib::*;
@@ -389,33 +594,26 @@ impl MissionCenterWindow {
             .property("application", application)
             .build();
 
-        if let Some(settings) = settings {
-            sys_info.set_update_speed(settings.int("app-update-interval").into());
+        sys_info.set_update_speed(settings.uint64("app-update-interval-u64"));
+        sys_info.set_core_count_affects_percentages(
+            settings.boolean("apps-page-core-count-affects-percentages"),
+        );
 
-            settings.connect_changed(
-                Some("app-update-interval"),
-                clone!(@weak this => move |settings, _| {
-                    use crate::{MissionCenterApplication};
-
-                    let update_speed = settings.int("app-update-interval").into();
-                    let app = match MissionCenterApplication::default_instance() {
-                        Some(app) => app,
-                        None => {
-                            g_critical!("MissionCenter", "Failed to get default instance of MissionCenterApplication");
-                            return;
-                        }
-                    };
-                    match app.sys_info() {
-                        Ok(sys_info) => {
-                            sys_info.set_update_speed(update_speed);
-                        }
-                        Err(e) => {
-                            g_critical!("MissionCenter", "Failed to get sys_info from MissionCenterApplication: {}", e);
-                        }
-                    };
-                }),
-            );
-        }
+        settings.connect_changed(Some("app-update-interval-u64"), |settings, _| {
+            let update_speed = settings.uint64("app-update-interval-u64");
+            match app!().sys_info() {
+                Ok(sys_info) => {
+                    sys_info.set_update_speed(update_speed);
+                }
+                Err(e) => {
+                    g_critical!(
+                        "MissionCenter",
+                        "Failed to get sys_info from MissionCenterApplication: {}",
+                        e
+                    );
+                }
+            };
+        });
 
         this
     }
@@ -439,6 +637,19 @@ impl MissionCenterWindow {
             );
         }
 
+        if readings.services.is_empty() {
+            g_critical!("MissionCenter", "No services found, hiding services page");
+            self.imp().services_stack_page.set_visible(false);
+        } else {
+            let ok = self.imp().services_page.set_initial_readings(&mut readings);
+            if !ok {
+                g_critical!(
+                    "MissionCenter",
+                    "Failed to set initial readings for services page"
+                );
+            }
+        }
+
         self.imp().loading_spinner.set_spinning(false);
         self.imp().loading_box.set_visible(false);
         self.imp().header_bar.set_visible(true);
@@ -452,6 +663,15 @@ impl MissionCenterWindow {
         self.imp()
             .split_view
             .set_collapsed(self.imp().should_hide_sidebar());
+
+        if let Ok(sys_info) = app!().sys_info() {
+            sys_info.continue_reading();
+        } else {
+            g_critical!(
+                "MissionCenter",
+                "Failed to get sys_info from MissionCenterApplication"
+            );
+        }
     }
 
     pub fn update_readings(&self, readings: &mut Readings) -> bool {
@@ -459,6 +679,7 @@ impl MissionCenterWindow {
 
         result &= self.imp().performance_page.update_readings(readings);
         result &= self.imp().apps_page.update_readings(readings);
+        result &= self.imp().services_page.update_readings(readings);
 
         result
     }

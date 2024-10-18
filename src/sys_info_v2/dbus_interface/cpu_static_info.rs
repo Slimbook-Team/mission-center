@@ -34,9 +34,6 @@ pub struct CpuStaticInfo {
     pub l2_cache: Option<u64>,
     pub l3_cache: Option<u64>,
     pub l4_cache: Option<u64>,
-    pub cpufreq_driver: Option<Arc<str>>,
-    pub cpufreq_governor: Option<Arc<str>>,
-    pub energy_performance_preference: Option<Arc<str>>,
 }
 
 impl Default for CpuStaticInfo {
@@ -52,9 +49,6 @@ impl Default for CpuStaticInfo {
             l2_cache: None,
             l3_cache: None,
             l4_cache: None,
-            cpufreq_driver: None,
-            cpufreq_governor: None,
-            energy_performance_preference: None,
         }
     }
 }
@@ -64,6 +58,16 @@ impl Arg for CpuStaticInfo {
 
     fn signature() -> Signature<'static> {
         Signature::from("(suytyytttt)")
+    }
+}
+
+impl ReadAll for CpuStaticInfo {
+    fn read(i: &mut Iter) -> Result<Self, TypeMismatchError> {
+        i.get().ok_or(super::TypeMismatchError::new(
+            ArgType::Invalid,
+            ArgType::Invalid,
+            0,
+        ))
     }
 }
 
@@ -346,78 +350,6 @@ impl<'a> Get<'a> for CpuStaticInfo {
                         Some(l4)
                     }
                 }
-            },
-        };
-
-        this.cpufreq_driver = match Iterator::next(static_info) {
-            None => {
-                g_critical!(
-                    "MissionCenter::GathererDBusProxy",
-                    "Failed to get CpuStaticInfo: Expected '10: s', got None",
-                );
-                return None;
-            }
-            Some(arg) => match arg.as_str() {
-                None => {
-                    g_critical!(
-                        "MissionCenter::GathererDBusProxy",
-                        "Failed to get CpuStaticInfo: Expected '10: s', got {:?}",
-                        arg.arg_type(),
-                    );
-                    return None;
-                }
-                Some(ivs) => match ivs {
-                    "" => None,
-                    _ => Some(Arc::from(ivs)),
-                },
-            },
-        };
-
-        this.cpufreq_governor = match Iterator::next(static_info) {
-            None => {
-                g_critical!(
-                    "MissionCenter::GathererDBusProxy",
-                    "Failed to get CpuStaticInfo: Expected '11: s', got None",
-                );
-                return None;
-            }
-            Some(arg) => match arg.as_str() {
-                None => {
-                    g_critical!(
-                        "MissionCenter::GathererDBusProxy",
-                        "Failed to get CpuStaticInfo: Expected '11: s', got {:?}",
-                        arg.arg_type(),
-                    );
-                    return None;
-                }
-                Some(ivs) => match ivs {
-                    "" => None,
-                    _ => Some(Arc::from(ivs)),
-                },
-            },
-        };
-
-        this.energy_performance_preference = match Iterator::next(static_info) {
-            None => {
-                g_critical!(
-                    "MissionCenter::GathererDBusProxy",
-                    "Failed to get CpuStaticInfo: Expected '12: s', got None",
-                );
-                return None;
-            }
-            Some(arg) => match arg.as_str() {
-                None => {
-                    g_critical!(
-                        "MissionCenter::GathererDBusProxy",
-                        "Failed to get CpuStaticInfo: Expected '12: s', got {:?}",
-                        arg.arg_type(),
-                    );
-                    return None;
-                }
-                Some(ivs) => match ivs {
-                    "" => None,
-                    _ => Some(Arc::from(ivs)),
-                },
             },
         };
 

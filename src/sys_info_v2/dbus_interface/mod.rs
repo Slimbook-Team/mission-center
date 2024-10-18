@@ -1,4 +1,4 @@
-/* sys_info_v2/dbus-interface/mod.rs
+/* sys_info_v2/dbus_interface/mod.rs
  *
  * Copyright 2024 Romeo Calota
  *
@@ -18,251 +18,199 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    mem::{align_of, size_of},
+    num::NonZeroU32,
+    rc::Rc,
+    sync::Arc,
+};
 
-use dbus::{arg::*, blocking, blocking::BlockingSender, strings::*};
+use dbus::{
+    arg::ArgType,
+    blocking::{LocalConnection, Proxy},
+};
+use static_assertions::const_assert;
 
-pub use apps::*;
-use arc_str_vec::*;
-pub use cpu_dynamic_info::*;
-pub use cpu_static_info::*;
-pub use disk_info::*;
-pub use gpu_dynamic_info::*;
-pub use gpu_static_info::*;
-use processes::ProcessMap;
-pub use processes::{Process, ProcessUsageStats};
+pub use apps::{App, AppMap};
+pub use arc_str_vec::ArcStrVec;
+pub use cpu_dynamic_info::CpuDynamicInfo;
+pub use cpu_static_info::CpuStaticInfo;
+pub use disk_info::{DiskInfo, DiskInfoVec, DiskType};
+pub use fan_info::{FanInfo, FanInfoVec};
+pub use gpu_dynamic_info::{GpuDynamicInfo, GpuDynamicInfoVec};
+pub use gpu_static_info::{GpuStaticInfo, GpuStaticInfoVec, OpenGLApi};
+pub use processes::{Process, ProcessMap, ProcessUsageStats};
+pub use service::{Service, ServiceMap};
 
 mod apps;
 mod arc_str_vec;
 mod cpu_dynamic_info;
 mod cpu_static_info;
 mod disk_info;
+mod fan_info;
 mod gpu_dynamic_info;
 mod gpu_static_info;
 mod processes;
+mod service;
 
-fn dbus_method_call<
-    'a,
-    'i,
-    'm,
-    R: ReadAll,
-    A: AppendAll,
-    I: Into<Interface<'i>>,
-    M: Into<Member<'m>>,
->(
-    connection: &blocking::Connection,
-    destination: &BusName<'a>,
-    path: &Path<'a>,
-    timeout: std::time::Duration,
-    i: I,
-    m: M,
-    args: A,
-) -> Result<R, dbus::Error> {
-    let mut msg = dbus::Message::method_call(destination, path, &i.into(), &m.into());
-    args.append(&mut IterAppend::new(&mut msg));
-    let r = connection.send_with_reply_and_block(msg, timeout)?;
-    Ok(R::read(&mut r.iter_init())?)
+pub const MC_GATHERER_OBJECT_PATH: &str = "/io/missioncenter/MissionCenter/Gatherer";
+pub const MC_GATHERER_INTERFACE_NAME: &str = "io.missioncenter.MissionCenter.Gatherer";
+
+// I don't know how to create one of these, so I just copy the one from the `dbus` crate.
+#[allow(unused)]
+struct TypeMismatchError {
+    pub expected: ArgType,
+    pub found: ArgType,
+    pub position: u32,
 }
 
-pub trait IoMissioncenterMissionCenterGatherer {
-    fn cpu_static_info(&self) -> Result<CpuStaticInfo, dbus::Error>;
-    fn cpu_dynamic_info(&self) -> Result<CpuDynamicInfo, dbus::Error>;
-    fn disks_info(&self) -> Result<Vec<DiskInfo>, dbus::Error>;
-    fn enumerate_gpus(&self) -> Result<Vec<Arc<str>>, dbus::Error>;
-    fn gpu_dynamic_info(&self, gpu_id: &str) -> Result<GpuDynamicInfo, dbus::Error>;
-    fn gpu_static_info(&self, gpu_id: &str) -> Result<GpuStaticInfo, dbus::Error>;
-    fn processes(
-        &self,
-        core_counts_affect_percentage: bool,
-    ) -> Result<HashMap<u32, Process>, dbus::Error>;
-    fn apps(&self) -> Result<HashMap<Arc<str>, App>, dbus::Error>;
+impl TypeMismatchError {
+    pub fn new(expected: ArgType, found: ArgType, position: u32) -> dbus::arg::TypeMismatchError {
+        unsafe {
+            std::mem::transmute(Self {
+                expected,
+                found,
+                position,
+            })
+        }
+    }
+}
 
+const_assert!(size_of::<TypeMismatchError>() == size_of::<dbus::arg::TypeMismatchError>());
+const_assert!(align_of::<TypeMismatchError>() == align_of::<dbus::arg::TypeMismatchError>());
+
+pub trait Gatherer {
+    fn get_cpu_static_info(&self) -> Result<CpuStaticInfo, dbus::Error>;
+    fn get_cpu_dynamic_info(&self) -> Result<CpuDynamicInfo, dbus::Error>;
+    fn get_disks_info(&self) -> Result<Vec<DiskInfo>, dbus::Error>;
+    fn get_fans_info(&self) -> Result<Vec<FanInfo>, dbus::Error>;
+    fn get_gpu_list(&self) -> Result<Vec<Arc<str>>, dbus::Error>;
+    fn get_gpu_static_info(&self) -> Result<Vec<GpuStaticInfo>, dbus::Error>;
+    fn get_gpu_dynamic_info(&self) -> Result<Vec<GpuDynamicInfo>, dbus::Error>;
+    fn get_apps(&self) -> Result<HashMap<Arc<str>, App>, dbus::Error>;
+    fn get_processes(&self) -> Result<HashMap<u32, Process>, dbus::Error>;
+    fn get_services(&self) -> Result<HashMap<Arc<str>, Service>, dbus::Error>;
     fn terminate_process(&self, process_id: u32) -> Result<(), dbus::Error>;
     fn kill_process(&self, process_id: u32) -> Result<(), dbus::Error>;
+    fn enable_service(&self, service_name: &str) -> Result<(), dbus::Error>;
+    fn disable_service(&self, service_name: &str) -> Result<(), dbus::Error>;
+    fn start_service(&self, service_name: &str) -> Result<(), dbus::Error>;
+    fn stop_service(&self, service_name: &str) -> Result<(), dbus::Error>;
+    fn restart_service(&self, service_name: &str) -> Result<(), dbus::Error>;
+    fn get_service_logs(
+        &self,
+        service_name: &str,
+        pid: Option<NonZeroU32>,
+    ) -> Result<Arc<str>, dbus::Error>;
 }
 
-impl<'a> IoMissioncenterMissionCenterGatherer for blocking::Proxy<'a, blocking::Connection> {
-    fn cpu_static_info(&self) -> Result<CpuStaticInfo, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetCpuStaticInfo",
-            (),
-        )
-        .and_then(|r: (CpuStaticInfo,)| Ok(r.0))
+impl<'a> Gatherer for Proxy<'a, Rc<LocalConnection>> {
+    fn get_cpu_static_info(&self) -> Result<CpuStaticInfo, dbus::Error> {
+        self.method_call(MC_GATHERER_INTERFACE_NAME, "GetCPUStaticInfo", ())
     }
 
-    fn cpu_dynamic_info(&self) -> Result<CpuDynamicInfo, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetCpuDynamicInfo",
-            (),
-        )
-        .and_then(|r: (CpuDynamicInfo,)| Ok(r.0))
+    fn get_cpu_dynamic_info(&self) -> Result<CpuDynamicInfo, dbus::Error> {
+        self.method_call(MC_GATHERER_INTERFACE_NAME, "GetCPUDynamicInfo", ())
     }
 
-    fn disks_info(&self) -> Result<Vec<DiskInfo>, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetDisksInfo",
-            (),
-        )
-        .and_then(|r: (DiskInfoVec,)| Ok(r.0.into()))
+    fn get_disks_info(&self) -> Result<Vec<DiskInfo>, dbus::Error> {
+        let res: Result<DiskInfoVec, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetDisksInfo", ());
+        res.map(|v| v.into())
     }
 
-    fn enumerate_gpus(&self) -> Result<Vec<Arc<str>>, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "EnumerateGPUs",
-            (),
-        )
-        .and_then(|r: (ArcStrVec,)| Ok(r.0.into()))
+    fn get_fans_info(&self) -> Result<Vec<FanInfo>, dbus::Error> {
+        let res: Result<FanInfoVec, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetFansInfo", ());
+        res.map(|v| v.into())
     }
 
-    fn gpu_dynamic_info(&self, gpu_id: &str) -> Result<GpuDynamicInfo, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetGPUDynamicInfo",
-            (gpu_id,),
-        )
-        .and_then(|r: (GpuDynamicInfo,)| Ok(r.0))
+    fn get_gpu_list(&self) -> Result<Vec<Arc<str>>, dbus::Error> {
+        let res: Result<ArcStrVec, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetGPUList", ());
+        res.map(|v| v.into())
     }
 
-    fn gpu_static_info(&self, gpu_id: &str) -> Result<GpuStaticInfo, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetGPUStaticInfo",
-            (gpu_id,),
-        )
-        .and_then(|r: (GpuStaticInfo,)| Ok(r.0))
+    fn get_gpu_static_info(&self) -> Result<Vec<GpuStaticInfo>, dbus::Error> {
+        let res: Result<GpuStaticInfoVec, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetGPUStaticInfo", ());
+        res.map(|v| v.into())
     }
 
-    fn processes(
-        &self,
-        core_counts_affect_percentage: bool,
-    ) -> Result<HashMap<u32, Process>, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetProcesses",
-            (core_counts_affect_percentage,),
-        )
-        .and_then(|r: (ProcessMap,)| Ok(r.0.into()))
+    fn get_gpu_dynamic_info(&self) -> Result<Vec<GpuDynamicInfo>, dbus::Error> {
+        let res: Result<GpuDynamicInfoVec, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetGPUDynamicInfo", ());
+        res.map(|v| v.into())
     }
 
-    fn apps(&self) -> Result<HashMap<Arc<str>, App>, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "GetApps",
-            (),
-        )
-        .and_then(|r: (AppMap,)| Ok(r.0.into()))
+    fn get_apps(&self) -> Result<HashMap<Arc<str>, App>, dbus::Error> {
+        let res: Result<AppMap, _> = self.method_call(MC_GATHERER_INTERFACE_NAME, "GetApps", ());
+        res.map(|v| v.into())
+    }
+
+    fn get_processes(&self) -> Result<HashMap<u32, Process>, dbus::Error> {
+        let res: Result<ProcessMap, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetProcesses", ());
+        res.map(|v| v.into())
+    }
+
+    fn get_services(&self) -> Result<HashMap<Arc<str>, Service>, dbus::Error> {
+        let res: Result<ServiceMap, _> =
+            self.method_call(MC_GATHERER_INTERFACE_NAME, "GetServices", ());
+        res.map(|v| v.into())
     }
 
     fn terminate_process(&self, process_id: u32) -> Result<(), dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
+        self.method_call(
+            MC_GATHERER_INTERFACE_NAME,
             "TerminateProcess",
             (process_id,),
         )
-        .and_then(|_: ()| Ok(()))
     }
 
     fn kill_process(&self, process_id: u32) -> Result<(), dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "io.missioncenter.MissionCenter.Gatherer",
-            "KillProcess",
-            (process_id,),
-        )
-        .and_then(|_: ()| Ok(()))
-    }
-}
-
-pub trait OrgFreedesktopDBusIntrospectable {
-    fn introspect(&self) -> Result<String, dbus::Error>;
-}
-
-impl<'a> OrgFreedesktopDBusIntrospectable for blocking::Proxy<'a, blocking::Connection> {
-    fn introspect(&self) -> Result<String, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "org.freedesktop.DBus.Introspectable",
-            "Introspect",
-            (),
-        )
-        .and_then(|r: (String,)| Ok(r.0))
-    }
-}
-
-pub trait OrgFreedesktopDBusPeer {
-    fn get_machine_id(&self) -> Result<String, dbus::Error>;
-    fn ping(&self) -> Result<(), dbus::Error>;
-}
-
-impl<'a> OrgFreedesktopDBusPeer for blocking::Proxy<'a, blocking::Connection> {
-    fn get_machine_id(&self) -> Result<String, dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "org.freedesktop.DBus.Peer",
-            "GetMachineId",
-            (),
-        )
-        .and_then(|r: (String,)| Ok(r.0))
+        self.method_call(MC_GATHERER_INTERFACE_NAME, "KillProcess", (process_id,))
     }
 
-    fn ping(&self) -> Result<(), dbus::Error> {
-        dbus_method_call(
-            &self.connection,
-            &self.destination,
-            &self.path,
-            self.timeout,
-            "org.freedesktop.DBus.Peer",
-            "Ping",
-            (),
+    fn enable_service(&self, service_name: &str) -> Result<(), dbus::Error> {
+        self.method_call(MC_GATHERER_INTERFACE_NAME, "EnableService", (service_name,))
+    }
+
+    fn disable_service(&self, service_name: &str) -> Result<(), dbus::Error> {
+        self.method_call(
+            MC_GATHERER_INTERFACE_NAME,
+            "DisableService",
+            (service_name,),
         )
+    }
+
+    fn start_service(&self, service_name: &str) -> Result<(), dbus::Error> {
+        self.method_call(MC_GATHERER_INTERFACE_NAME, "StartService", (service_name,))
+    }
+
+    fn stop_service(&self, service_name: &str) -> Result<(), dbus::Error> {
+        self.method_call(MC_GATHERER_INTERFACE_NAME, "StopService", (service_name,))
+    }
+
+    fn restart_service(&self, service_name: &str) -> Result<(), dbus::Error> {
+        self.method_call(
+            MC_GATHERER_INTERFACE_NAME,
+            "RestartService",
+            (service_name,),
+        )
+    }
+
+    fn get_service_logs(
+        &self,
+        service_name: &str,
+        pid: Option<NonZeroU32>,
+    ) -> Result<Arc<str>, dbus::Error> {
+        let res: Result<(String,), _> = self.method_call(
+            MC_GATHERER_INTERFACE_NAME,
+            "GetServiceLogs",
+            (service_name, pid.map(|v| v.get()).unwrap_or(0)),
+        );
+        res.map(|v| Arc::<str>::from(v.0))
     }
 }

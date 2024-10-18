@@ -29,8 +29,8 @@ mod imp {
     use super::*;
 
     #[derive(Properties)]
-    #[properties(wrapper_type = super::ViewModel)]
-    pub struct ViewModel {
+    #[properties(wrapper_type = super::RowModel)]
+    pub struct RowModel {
         #[property(get, set)]
         pub pid: Cell<u32>,
 
@@ -79,7 +79,7 @@ mod imp {
         pub children: Cell<gio::ListStore>,
     }
 
-    impl Default for ViewModel {
+    impl Default for RowModel {
         fn default() -> Self {
             Self {
                 pid: Cell::new(0),
@@ -118,12 +118,12 @@ mod imp {
 
                 merged_stats: Cell::new(None),
 
-                children: Cell::new(gio::ListStore::new::<super::ViewModel>()),
+                children: Cell::new(gio::ListStore::new::<super::RowModel>()),
             }
         }
     }
 
-    impl ViewModel {
+    impl RowModel {
         pub fn icon(&self) -> glib::GString {
             let icon = self.icon.take();
             let result = icon.clone();
@@ -227,16 +227,12 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for ViewModel {
-        const NAME: &'static str = "ViewModel";
-        type Type = super::ViewModel;
+    impl ObjectSubclass for RowModel {
+        const NAME: &'static str = "RowModel";
+        type Type = super::RowModel;
     }
 
-    impl ObjectImpl for ViewModel {
-        fn constructed(&self) {
-            self.parent_constructed();
-        }
-
+    impl ObjectImpl for RowModel {
         fn properties() -> &'static [ParamSpec] {
             Self::derived_properties()
         }
@@ -247,6 +243,10 @@ mod imp {
 
         fn property(&self, id: usize, pspec: &ParamSpec) -> Value {
             self.derived_property(id, pspec)
+        }
+
+        fn constructed(&self) {
+            self.parent_constructed();
         }
     }
 }
@@ -265,7 +265,7 @@ pub enum SectionType {
     Processes,
 }
 
-pub struct ViewModelBuilder {
+pub struct RowModelBuilder {
     pid: u32,
     icon: glib::GString,
     name: glib::GString,
@@ -288,7 +288,7 @@ pub struct ViewModelBuilder {
     max_gpu_memory_usage: f32,
 }
 
-impl ViewModelBuilder {
+impl RowModelBuilder {
     pub fn new() -> Self {
         Self {
             pid: 0,
@@ -399,8 +399,8 @@ impl ViewModelBuilder {
         self
     }
 
-    pub fn build(self) -> ViewModel {
-        let this = ViewModel::new(self.content_type, self.show_expander);
+    pub fn build(self) -> RowModel {
+        let this = RowModel::new(self.content_type, self.show_expander);
 
         {
             let this = this.imp();
@@ -430,26 +430,40 @@ impl ViewModelBuilder {
 }
 
 glib::wrapper! {
-    pub struct ViewModel(ObjectSubclass<imp::ViewModel>);
+    pub struct RowModel(ObjectSubclass<imp::RowModel>);
 }
 
-impl ViewModel {
+impl RowModel {
     pub fn new(content_type: ContentType, show_expander: Option<bool>) -> Self {
-        use gtk::glib::clone;
         use gtk::prelude::*;
 
         let this: Self = glib::Object::builder().build();
         this.imp().content_type.set(content_type);
 
         if show_expander.is_none() {
-            glib::idle_add_local_once(clone!(@weak this => move || {
-                this.set_show_expander(this.children().n_items() > 0);
-            }));
+            glib::idle_add_local_once({
+                let this = this.downgrade();
+                move || {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
 
-            this.children()
-                .connect_items_changed(clone!(@weak this => move |_, _, _, _| {
                     this.set_show_expander(this.children().n_items() > 0);
-                }));
+                }
+            });
+
+            this.children().connect_items_changed({
+                let this = this.downgrade();
+                move |_, _, _, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+
+                    this.set_show_expander(this.children().n_items() > 0);
+                }
+            });
         } else {
             this.set_show_expander(show_expander.unwrap());
         }

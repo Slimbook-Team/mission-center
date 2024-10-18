@@ -12,6 +12,8 @@ resources/ui/performance_page/cpu.blp
 resources/ui/performance_page/cpu_details.blp
 resources/ui/performance_page/disk.blp
 resources/ui/performance_page/disk_details.blp
+resources/ui/performance_page/fan.blp
+resources/ui/performance_page/fan_details.blp
 resources/ui/performance_page/gpu.blp
 resources/ui/performance_page/gpu_details.blp
 resources/ui/performance_page/memory.blp
@@ -23,6 +25,10 @@ resources/ui/performance_page/summary_graph.blp
 
 resources/ui/preferences/page.blp
 resources/ui/preferences/window.blp
+
+resources/ui/services_page/context_menu_button.blp
+resources/ui/services_page/details_dialog.blp
+resources/ui/services_page/page.blp
 
 resources/ui/window.blp
 
@@ -36,9 +42,11 @@ src/apps_page/view_model.rs
 src/performance_page/widgets/mod.rs
 src/performance_page/widgets/graph_widget.rs
 src/performance_page/widgets/mem_composition_widget.rs
+src/performance_page/widgets/sidebar_drop_hint.rs
 src/performance_page/mod.rs
 src/performance_page/cpu.rs
 src/performance_page/disk.rs
+src/performance_page/fan.rs
 src/performance_page/gpu.rs
 src/performance_page/memory.rs
 src/performance_page/network.rs
@@ -46,6 +54,12 @@ src/performance_page/summary_graph.rs
 
 src/preferences/mod.rs
 src/preferences/page.rs
+
+src/services_page/mod.rs
+src/services_page/context_menu_button.rs
+src/services_page/details_dialog.rs
+src/services_page/list_cell.rs
+src/services_page/services_list_item.rs
 
 src/application.rs
 src/main.rs

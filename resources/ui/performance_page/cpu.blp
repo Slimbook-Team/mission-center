@@ -53,31 +53,22 @@ template $PerformancePageCpu : Box {
           ellipsize: middle;
         }
       }
-
       Box {
-        Label utilization_label_all {
+        Label {
+          styles [
+            "caption",
+          ]
+
+          label: _("Utilization over ");
+        }
+        Label graph_max_duration {
           styles [
             "caption",
           ]
 
           hexpand: true;
           halign: start;
-
-          visible: false;
         }
-
-        Label utilization_label_overall {
-          styles [
-            "caption",
-          ]
-
-          hexpand: true;
-          halign: start;
-          label: _("Utilization");
-
-          visible: false;
-        }
-
         Label {
           styles [
             "caption",
@@ -100,34 +91,6 @@ template $PerformancePageCpu : Box {
 
     row-homogeneous: true;
     column-homogeneous: true;
-  }
-
-  Box {
-    margin-top: 2;
-    // height-request: 25;
-
-    Box overall_graph_labels {
-      visible: false;
-
-      Label graph_max_duration {
-        styles [
-          "caption",
-        ]
-
-        hexpand: true;
-        halign: start;
-        valign: start;
-      }
-
-      Label {
-        styles [
-          "caption",
-        ]
-
-        valign: start;
-        label: "0";
-      }
-    }
   }
 
   PopoverMenu context_menu {
@@ -178,7 +141,7 @@ menu context_menu_model {
       }
 
       item {
-        label: _("_Disk");
+        label: _("_Drive");
         action: "graph.disk";
       }
 
@@ -190,6 +153,11 @@ menu context_menu_model {
       item {
         label: _("_GPU");
         action: "graph.gpu";
+      }
+
+      item {
+        label: _("_Fan");
+        action: "graph.fan";
       }
     }
   }

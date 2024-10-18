@@ -44,7 +44,7 @@ mod imp {
         #[property(get = Self::unit, set = Self::set_unit, type = glib::GString)]
         unit: Cell<glib::GString>,
         #[property(set = Self::set_content_type, type = u8)]
-        content_type: Cell<crate::apps_page::view_model::ContentType>,
+        content_type: Cell<crate::apps_page::row_model::ContentType>,
         #[property(get, set)]
         value: Cell<f32>,
         #[property(set = Self::set_usage_percent)]
@@ -53,7 +53,7 @@ mod imp {
 
     impl Default for StatColumn {
         fn default() -> Self {
-            use crate::apps_page::view_model::ContentType;
+            use crate::apps_page::row_model::ContentType;
 
             Self {
                 label: TemplateChild::default(),
@@ -76,7 +76,7 @@ mod imp {
         }
 
         fn set_content_type(&self, v: u8) {
-            use crate::apps_page::view_model::ContentType;
+            use crate::apps_page::row_model::ContentType;
 
             let content_type = match v {
                 0 => ContentType::SectionHeader,
@@ -110,7 +110,7 @@ mod imp {
 
     impl StatColumn {
         fn update_label(&self) {
-            use crate::apps_page::view_model::ContentType;
+            use crate::apps_page::row_model::ContentType;
 
             if self.content_type.get() == ContentType::SectionHeader {
                 self.label.set_text("");

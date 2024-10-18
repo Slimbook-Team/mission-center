@@ -19,12 +19,12 @@
  */
 
 using Gtk 4.0;
-using Adw 1;
 
 template $AppsPage : Box {
   orientation: vertical;
 
   PopoverMenu context_menu {
+    has-arrow: false;
   }
 
   ScrolledWindow {
@@ -49,16 +49,19 @@ template $AppsPage : Box {
             child: TreeExpander expander {
               list-row: bind template.item as <ListItem>;
               child: $ListItem {
-                icon: bind (expander.item as <$ViewModel>).icon;
-                name: bind (expander.item as <$ViewModel>).name;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
-                show-expander: bind (expander.item as <$ViewModel>).show-expander;
-                expanded: bind (expander.item as <$ViewModel>).expanded;
+                icon: bind (expander.item as <$RowModel>).icon;
+                name: bind (expander.item as <$RowModel>).name;
+                // Needed for the context menu
+                pid: bind (expander.item as <$RowModel>).pid;
 
-                cpu-usage-percent: bind (expander.item as <$ViewModel>).cpu-usage-percent;
-                memory-usage-percent: bind (expander.item as <$ViewModel>).memory-usage-percent;
-                gpu-usage-percent: bind (expander.item as <$ViewModel>).gpu-usage;
-                gpu-memory-usage-percent: bind (expander.item as <$ViewModel>).gpu-memory-usage-percent;
+                content-type: bind (expander.item as <$RowModel>).content-type;
+                show-expander: bind (expander.item as <$RowModel>).show-expander;
+                expanded: bind (expander.item as <$RowModel>).expanded;
+
+                cpu-usage-percent: bind (expander.item as <$RowModel>).cpu-usage-percent;
+                memory-usage-percent: bind (expander.item as <$RowModel>).memory-usage-percent;
+                gpu-usage-percent: bind (expander.item as <$RowModel>).gpu-usage;
+                gpu-memory-usage-percent: bind (expander.item as <$RowModel>).gpu-memory-usage-percent;
               };
             };
           }
@@ -81,8 +84,8 @@ template $AppsPage : Box {
               halign: end;
 
               child: $PidColumn {
-                value: bind (expander.item as <$ViewModel>).pid;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
+                value: bind (expander.item as <$RowModel>).pid;
+                content-type: bind (expander.item as <$RowModel>).content-type;
               };
             };
           }
@@ -106,9 +109,9 @@ template $AppsPage : Box {
 
               child: $StatColumn {
                 unit: "%";
-                value: bind (expander.item as <$ViewModel>).cpu-usage;
-                usage-percent: bind (expander.item as <$ViewModel>).cpu-usage-percent;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
+                value: bind (expander.item as <$RowModel>).cpu-usage;
+                usage-percent: bind (expander.item as <$RowModel>).cpu-usage-percent;
+                content-type: bind (expander.item as <$RowModel>).content-type;
               };
             };
           }
@@ -132,9 +135,9 @@ template $AppsPage : Box {
 
               child: $StatColumn {
                 unit: "B";
-                value: bind (expander.item as <$ViewModel>).memory-usage;
-                usage-percent: bind (expander.item as <$ViewModel>).memory-usage-percent;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
+                value: bind (expander.item as <$RowModel>).memory-usage;
+                usage-percent: bind (expander.item as <$RowModel>).memory-usage-percent;
+                content-type: bind (expander.item as <$RowModel>).content-type;
               };
             };
           }
@@ -158,8 +161,8 @@ template $AppsPage : Box {
 
               child: $StatColumn {
                 unit: "B/s";
-                value: bind (expander.item as <$ViewModel>).disk-usage;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
+                value: bind (expander.item as <$RowModel>).disk-usage;
+                content-type: bind (expander.item as <$RowModel>).content-type;
               };
             };
           }
@@ -183,9 +186,9 @@ template $AppsPage : Box {
 
               child: $StatColumn {
                 unit: "%";
-                value: bind (expander.item as <$ViewModel>).gpu-usage;
-                usage-percent: bind (expander.item as <$ViewModel>).gpu-usage;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
+                value: bind (expander.item as <$RowModel>).gpu-usage;
+                usage-percent: bind (expander.item as <$RowModel>).gpu-usage;
+                content-type: bind (expander.item as <$RowModel>).content-type;
               };
             };
           }
@@ -209,9 +212,9 @@ template $AppsPage : Box {
 
               child: $StatColumn {
                 unit: "B";
-                value: bind (expander.item as <$ViewModel>).gpu-memory-usage;
-                usage-percent: bind (expander.item as <$ViewModel>).gpu-memory-usage-percent;
-                content-type: bind (expander.item as <$ViewModel>).content-type;
+                value: bind (expander.item as <$RowModel>).gpu-memory-usage;
+                usage-percent: bind (expander.item as <$RowModel>).gpu-memory-usage-percent;
+                content-type: bind (expander.item as <$RowModel>).content-type;
               };
             };
           }

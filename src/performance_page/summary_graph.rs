@@ -19,11 +19,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use std::collections::HashSet;
+
 use adw::subclass::prelude::*;
 use glib::{ParamSpec, Properties, Value};
-use gtk::{gdk, glib, prelude::*, Ordering};
+use gtk::{gdk, glib, prelude::*};
 
-use super::widgets::GraphWidget;
+use super::widgets::{GraphWidget, SidebarDropHint};
+use crate::settings;
 
 mod imp {
     use super::*;
@@ -34,6 +37,10 @@ mod imp {
     #[template(resource = "/io/missioncenter/MissionCenter/ui/performance_page/summary_graph.ui")]
     #[allow(dead_code)]
     pub struct SummaryGraph {
+        pub drop_hint: SidebarDropHint,
+
+        #[template_child]
+        pub drag_handle_icon: TemplateChild<gtk::Image>,
         #[template_child]
         pub graph_widget: TemplateChild<GraphWidget>,
         #[template_child]
@@ -42,6 +49,11 @@ mod imp {
         label_info1: TemplateChild<gtk::Label>,
         #[template_child]
         label_info2: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub enabled_switch: TemplateChild<gtk::Switch>,
+
+        #[property(get = Self::is_enabled, set = Self::set_enabled, type = bool)]
+        is_enabled: [u8; 0],
 
         #[property(get = Self::base_color, set = Self::set_base_color, type = gdk::RGBA)]
         base_color: [u8; 0],
@@ -56,10 +68,15 @@ mod imp {
     impl Default for SummaryGraph {
         fn default() -> Self {
             Self {
+                drop_hint: SidebarDropHint::new(),
+                drag_handle_icon: Default::default(),
                 graph_widget: Default::default(),
                 label_heading: Default::default(),
                 label_info1: Default::default(),
                 label_info2: Default::default(),
+                enabled_switch: Default::default(),
+
+                is_enabled: [0; 0],
 
                 base_color: [0; 0],
                 heading: [0; 0],
@@ -70,6 +87,14 @@ mod imp {
     }
 
     impl SummaryGraph {
+        fn is_enabled(&self) -> bool {
+            self.enabled_switch.is_active()
+        }
+
+        fn set_enabled(&self, enabled: bool) {
+            self.enabled_switch.set_active(enabled);
+        }
+
         fn base_color(&self) -> gdk::RGBA {
             self.graph_widget.base_color()
         }
@@ -143,6 +168,54 @@ mod imp {
 
         fn constructed(&self) {
             self.parent_constructed();
+
+            self.enabled_switch.connect_active_notify({
+                let this = self.obj().downgrade();
+                move |switch| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+
+                    let settings = settings!();
+
+                    let hidden_graphs = settings.string("performance-sidebar-hidden-graphs");
+                    let mut hidden_graphs = hidden_graphs
+                        .split(";")
+                        .filter(|g| !g.is_empty())
+                        .collect::<HashSet<_>>();
+                    let name = this.widget_name();
+                    let name = name.as_str();
+
+                    if switch.is_active() && hidden_graphs.contains(name) {
+                        hidden_graphs.remove(name);
+                    } else if !switch.is_active() && !hidden_graphs.contains(name) {
+                        hidden_graphs.insert(name);
+                    }
+
+                    let mut output = String::new();
+                    for graph in hidden_graphs {
+                        output.push_str(graph);
+                        output.push(';');
+                    }
+                    let output = if !output.is_empty() {
+                        &output[..output.len() - 1]
+                    } else {
+                        ""
+                    };
+
+                    settings
+                        .set_string("performance-sidebar-hidden-graphs", output)
+                        .unwrap_or_else(|_| {
+                            glib::g_warning!(
+                                "MissionCenter::PerformancePage",
+                                "Failed to set performance-sidebar-hidden-graphs setting"
+                            );
+                        });
+
+                    this.notify_is_enabled();
+                }
+            });
         }
     }
 
@@ -159,74 +232,65 @@ glib::wrapper! {
 
 impl SummaryGraph {
     pub fn new() -> Self {
-        let this: Self = unsafe {
-            glib::Object::new_internal(Self::static_type(), &mut [])
-                .downcast()
-                .unwrap()
-        };
-        this
+        glib::Object::builder().build()
+    }
+
+    pub fn set_edit_mode(&self, edit_mode: bool) {
+        self.imp().drag_handle_icon.set_visible(edit_mode);
+        self.imp().enabled_switch.set_visible(edit_mode);
+        if let Some(parent) = self.parent() {
+            parent.set_visible(edit_mode || self.is_enabled());
+        }
     }
 
     pub fn graph_widget(&self) -> GraphWidget {
         self.imp().graph_widget.clone()
     }
 
-    pub fn set_page_indices(&self, primary: usize, secondary: usize) {
-        self.clone().set_page_primary_index(primary);
-        self.clone().set_page_secondary_index(secondary);
+    pub fn show_drop_hint_top(&self) {
+        self.hide_drop_hint();
+
+        self.imp().drop_hint.set_margin_bottom(20);
+
+        self.prepend(&self.imp().drop_hint);
     }
 
-    pub fn set_page_secondary_index(&self, index: usize) {
-        unsafe { self.set_data("secondary_index", index as u32) }
+    pub fn show_drop_hint_bottom(&self) {
+        self.hide_drop_hint();
+
+        self.imp().drop_hint.set_margin_top(20);
+
+        self.append(&self.imp().drop_hint);
     }
 
-    pub fn set_page_primary_index(&self, index: usize) {
-        unsafe { self.set_data("ordinal", index as u32) }
-    }
-
-    pub fn get_primary_ordinal(&self) -> usize {
-        let mut out = 0;
-        unsafe {
-            let data = self.data::<u32>("ordinal");
-            if data.is_some() {
-                let null = data.unwrap();
-                out = *null.as_ref();
-            }
+    pub fn hide_drop_hint(&self) {
+        if !self.is_drop_hint_visible() {
+            return;
         }
 
-        out as _
+        self.imp().drop_hint.set_margin_top(0);
+        self.imp().drop_hint.set_margin_bottom(0);
+
+        self.remove(&self.imp().drop_hint);
     }
 
-    pub fn get_secondary_ordinal(&self) -> usize {
-        let mut out = 0;
-        unsafe {
-            let data = self.data::<u32>("secondary_index");
-            if data.is_some() {
-                let null = data.unwrap();
-                out = *null.as_ref();
-            }
-        }
-
-        out as _
+    pub fn is_drop_hint_visible(&self) -> bool {
+        self.imp().drop_hint.parent().is_some()
     }
 
-    pub fn cmp(&self, other: &Self) -> Ordering {
-        let primary1 = self.get_primary_ordinal();
-        let primary2 = other.get_primary_ordinal();
-        if primary1 > primary2 {
-            Ordering::Larger
-        } else if primary1 < primary2 {
-            Ordering::Smaller
-        } else {
-            let secondary1 = self.get_secondary_ordinal();
-            let secondary2 = other.get_secondary_ordinal();
-            if secondary1 > secondary2 {
-                Ordering::Larger
-            } else if secondary1 < secondary2 {
-                Ordering::Smaller
-            } else {
-                Ordering::Equal
-            }
+    pub fn is_drop_hint_top(&self) -> bool {
+        if !self.is_drop_hint_visible() {
+            return false;
         }
+
+        self.imp().drop_hint.prev_sibling().is_none()
+    }
+
+    pub fn is_drop_hint_bottom(&self) -> bool {
+        if !self.is_drop_hint_visible() {
+            return false;
+        }
+
+        self.imp().drop_hint.next_sibling().is_none()
     }
 }

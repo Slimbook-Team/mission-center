@@ -1,0 +1,117 @@
+/* ui/performance_page/fan_details.blp
+ *
+ * Copyright 2024 Romeo Calota
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+using Gtk 4.0;
+
+Box root {
+  margin-top: 65;
+  margin-bottom: 10;
+  orientation: vertical;
+  spacing: 20;
+
+  Box dynamic_data {
+    orientation: vertical;
+    spacing: 10;
+
+    Box {
+      spacing: 5;
+
+      Picture legend_speed {
+        can-shrink: false;
+        content-fit: scale_down;
+      }
+
+      Box {
+        orientation: vertical;
+        spacing: 3;
+
+        Label {
+          styles [
+            "caption",
+          ]
+
+          halign: start;
+          label: _("Fan Speed");
+        }
+
+        Label speed {
+          styles [
+            "title-4",
+          ]
+
+          halign: start;
+        }
+      }
+    }
+
+    Box pwm_legend_box {
+      spacing: 5;
+
+      Picture legend_pwm {
+        can-shrink: false;
+        content-fit: scale_down;
+      }
+
+      Box {
+        orientation: vertical;
+        spacing: 3;
+
+        Label {
+          styles [
+            "caption",
+          ]
+
+          halign: start;
+          label: _("PWM Percentage");
+        }
+
+        Label pwm {
+          styles [
+            "title-4",
+          ]
+
+          halign: start;
+        }
+      }
+    }
+
+    Box temp_label_box {
+      orientation: vertical;
+      spacing: 3;
+
+      Label {
+        styles [
+          "caption",
+        ]
+
+        halign: start;
+        label: _("Current Temperature");
+      }
+
+      Label temp {
+        styles [
+          "title-4",
+        ]
+
+        halign: start;
+      }
+    }
+  }
+}

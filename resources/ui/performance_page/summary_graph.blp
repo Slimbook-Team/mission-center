@@ -21,45 +21,71 @@
 using Gtk 4.0;
 
 template $SummaryGraph: Box {
-  spacing: 10;
+  orientation: vertical;
+
   margin-top: 10;
   margin-bottom: 10;
   margin-end: 10;
 
-  $GraphWidget graph_widget {
-      width-request: 80;
-      height-request: 50;
-
-      data-points: 60;
-      grid-visible: false;
-  }
-
   Box {
-    orientation: vertical;
-    spacing: 3;
-    width-request: 145;
+    spacing: 10;
 
-    Label label_heading {
-      halign: start;
-      ellipsize: end;
-    }
-
-    Label label_info1 {
+    Image drag_handle_icon {
       styles [
-        "caption",
+        "drag-handle",
       ]
 
-      halign: start;
-      ellipsize: end;
+      visible: false;
+      margin-start: 3;
+
+      icon-name: "list-drag-handle-symbolic";
     }
 
-    Label label_info2 {
-      styles [
-        "caption",
-      ]
+    $GraphWidget graph_widget {
+        width-request: 80;
+        height-request: 50;
 
-      halign: start;
-      ellipsize: end;
+        data-points: 60;
+        grid-visible: false;
+    }
+
+    Box {
+      orientation: vertical;
+      spacing: 3;
+      width-request: 145;
+
+      Label label_heading {
+        halign: start;
+        ellipsize: end;
+      }
+
+      Label label_info1 {
+        styles [
+          "caption",
+        ]
+
+        halign: start;
+        ellipsize: end;
+      }
+
+      Label label_info2 {
+        styles [
+          "caption",
+        ]
+
+        halign: start;
+        ellipsize: end;
+      }
+    }
+
+    Switch enabled_switch {
+      visible: false;
+
+      halign: end;
+      valign: center;
+      vexpand: false;
+
+      active: true;
     }
   }
 }

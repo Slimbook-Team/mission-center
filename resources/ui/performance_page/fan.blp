@@ -1,0 +1,201 @@
+/* ui/performance_page/fan.blp
+ *
+ * Copyright 2024 Romeo Calota
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+using Gtk 4.0;
+
+template $PerformancePageFan: Box {
+  orientation: vertical;
+  margin-bottom: 10;
+
+  WindowHandle {
+    child: Box description {
+      orientation: vertical;
+      spacing: 7;
+      hexpand: true;
+
+      Box {
+        spacing: 20;
+
+        Label title_fan_name {
+          styles [
+            "title-1",
+          ]
+
+          hexpand: true;
+          halign: start;
+        }
+
+        Label title_temp_name {
+          styles [
+            "title-3",
+          ]
+
+          halign: end;
+          ellipsize: middle;
+        }
+      }
+    };
+  }
+
+  Box {
+    orientation: vertical;
+    spacing: 10;
+    Box speed_box {
+      orientation: vertical;
+      Box {
+        Label {
+          styles [
+            "caption",
+          ]
+          label: _("Fan speed over ");
+        }
+
+        Label speed_graph_max_duration {
+          styles [
+            "caption",
+          ]
+
+          hexpand: true;
+          halign: start;
+          valign: start;
+        }
+
+        Label speed_max_y {
+          styles [
+            "caption",
+          ]
+        }
+      }
+
+      $GraphWidget speed_graph {
+        vexpand: true;
+        hexpand: true;
+
+        width-request: 100;
+        height-request: 50;
+
+        base-color: bind template.base-color;
+        data-set-count: 2;
+        scroll: true;
+
+        scaling: 3;
+        only-scale-up: true;
+      }
+    }
+
+    Box temp_graph_box {
+      orientation: vertical;
+      Box {
+        Label {
+          styles [
+            "caption",
+          ]
+          label: _("Temperature over ");
+        }
+
+        Label temp_graph_max_duration {
+          styles [
+            "caption",
+          ]
+
+          hexpand: true;
+          halign: start;
+          valign: start;
+        }
+
+        Label temp_max_y {
+          styles [
+            "caption",
+          ]
+        }
+      }
+
+      $GraphWidget temp_graph {
+        vexpand: true;
+        hexpand: true;
+
+        width-request: 100;
+        height-request: 50;
+
+        base-color: bind template.base-color;
+        data-set-count: 1;
+        scroll: true;
+
+        scaling: 3;
+        only-scale-up: true;
+      }
+    }
+  }
+
+  PopoverMenu context_menu {
+    has-arrow: false;
+    menu-model: context_menu_model;
+  }
+}
+
+menu context_menu_model {
+  section {
+    item {
+      label: _("Graph _Summary View");
+      action: "graph.summary";
+    }
+
+    submenu {
+      label: _("_View");
+
+      item {
+        label: _("CP_U");
+        action: "graph.cpu";
+      }
+
+      item {
+        label: _("_Memory");
+        action: "graph.memory";
+      }
+
+      item {
+        label: _("_Drive");
+        action: "graph.disk";
+      }
+
+      item {
+        label: _("_Network");
+        action: "graph.network";
+      }
+
+      item {
+        label: _("_GPU");
+        action: "graph.gpu";
+      }
+
+      item {
+        label: _("_Fan");
+        action: "graph.fan";
+      }
+    }
+  }
+
+  section {
+    item {
+      label: _("_Copy");
+      action: "graph.copy";
+    }
+  }
+}

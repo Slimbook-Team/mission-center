@@ -1,6 +1,6 @@
 /* sys_info_v2/gatherer/src/platform/linux/mod.rs
  *
- * Copyright 2023 Romeo Calota
+ * Copyright 2024 Romeo Calota
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,22 +18,33 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use std::time::{Duration, Instant};
+
+use lazy_static::lazy_static;
+
 pub use apps::*;
 pub use cpu_info::*;
 pub use disk_info::*;
+pub use fan_info::*;
 use fork::run_forked;
 pub use gpu_info::*;
-use lazy_static::lazy_static;
 pub use processes::*;
+pub use services::*;
 pub use utilities::*;
 
 mod apps;
 mod cpu_info;
 mod disk_info;
+mod fan_info;
 mod fork;
 mod gpu_info;
+mod openrc;
 mod processes;
+mod services;
+mod systemd;
 mod utilities;
+
+const MIN_DELTA_REFRESH: Duration = Duration::from_millis(200);
 
 lazy_static! {
     static ref HZ: usize = unsafe { libc::sysconf(libc::_SC_CLK_TCK) as usize };
@@ -53,5 +64,13 @@ lazy_static! {
             .count()
             .max(2)
             - 1
+    };
+    static ref INITIAL_REFRESH_TS: Instant = unsafe {
+        struct Ts {
+            _sec: i64,
+            _nsec: u32,
+        }
+
+        std::mem::transmute(Ts { _sec: 0, _nsec: 0 })
     };
 }

@@ -1,0 +1,37 @@
+diff --git a/meson.build b/meson.build
+index d18cfa2c00..2ce0750b4b 100644
+--- a/meson.build
++++ b/meson.build
+@@ -625,20 +625,18 @@ if os_unix
+   cdata.set('HAVE_GIO_UNIX', giounix_dep.found())
+ endif
+ 
+-# Check for Vulkan support
+-# Uses meson's custom vulkan dependency searching. Set the VULKAN_SDK env var
+-# to use a custom path for the Vulkan SDK. Bugs that are found with it should
+-# be reported upstream and fixed.
+-vulkan_dep = dependency('vulkan',
+-                        version: vulkan_req,
+-                        required: vulkan_enabled)
+-glslc = find_program('glslc', required: vulkan_enabled)
+-if vulkan_dep.found() and glslc.found()
+-  have_vulkan = true
+-  vulkan_pkg_found = vulkan_dep.type_name() == 'pkgconfig'
+-else
+-  have_vulkan = false
+-  vulkan_pkg_found = false
++if vulkan_enabled.enabled()
++  subdir('glad')
++
++  glslc = find_program('glslc', required: vulkan_enabled)
++
++  if glslc.found()
++    have_vulkan = true
++    vulkan_pkg_found = vulkan_dep.type_name() == 'pkgconfig'
++  else
++    have_vulkan = false
++    vulkan_pkg_found = false
++  endif
+ endif
+ 
+ libdrm_dep = dependency('libdrm', required: os_linux)

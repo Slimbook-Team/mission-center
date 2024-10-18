@@ -18,85 +18,67 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-use std::sync::Arc;
+use std::{fs::OpenOptions, io::Read, os::unix::ffi::OsStrExt, sync::Arc, time::Instant};
 
-use crate::platform::cpu_info::*;
+use super::{CPU_COUNT, INITIAL_REFRESH_TS, MIN_DELTA_REFRESH};
+use crate::{critical, debug, platform::cpu_info::*};
 
-use super::{CPU_COUNT, HZ};
-
-const PROC_STAT_USER: usize = 0;
-const PROC_STAT_NICE: usize = 1;
-const PROC_STAT_SYSTEM: usize = 2;
-const PROC_STAT_IRQ: usize = 5;
-const PROC_STAT_SOFTIRQ: usize = 6;
-const PROC_STAT_GUEST: usize = 8;
-const PROC_STAT_GUEST_NICE: usize = 9;
-
-const STALE_DELTA: std::time::Duration = std::time::Duration::from_millis(1000);
+const PROC_STAT_IGNORE: [usize; 2] = [0, 5];
+const PROC_STAT_IDLE: [usize; 1] = [4];
+const PROC_STAT_KERNEL: [usize; 2] = [6, 7];
 
 #[derive(Debug, Copy, Clone)]
-struct CpuStats {
-    pub user: u64,
-    pub nice: u64,
-    pub system: u64,
-    pub irq: u64,
-    pub softirq: u64,
-    pub timestamp: std::time::Instant,
+struct CpuTicks {
+    used: u64,
+    idle: u64,
+    kernel: u64,
 }
 
-impl Default for CpuStats {
+impl Default for CpuTicks {
     fn default() -> Self {
         Self {
-            user: 0,
-            nice: 0,
-            system: 0,
-            irq: 0,
-            softirq: 0,
-            timestamp: std::time::Instant::now(),
+            used: 0,
+            idle: 0,
+            kernel: 0,
         }
     }
 }
 
-impl CpuStats {
-    pub fn cpu_usage(&self, prev_measurement: &Self, core_count: usize) -> f32 {
-        let delta_time = self.timestamp - prev_measurement.timestamp;
-        let delta_work_time = ((self
-            .work_time()
-            .saturating_sub(prev_measurement.work_time()) as f32)
-            * 1000.)
-            / *HZ as f32;
+impl CpuTicks {
+    pub fn update(&mut self, line: &str) -> (f32, f32) {
+        let failure = |e| {
+            critical!("Gatherer::CPU", "Failed to read /proc/stat: {}", e);
+            0
+        };
+        let fields = line.split_whitespace();
+        let mut new_ticks = CpuTicks::default();
+        for (pos, field) in fields.enumerate() {
+            match pos {
+                // 0 = cpu(num), 4 = idle, 6 + 7 kernel stuff, rest = busy time
+                x if PROC_STAT_IGNORE.contains(&x) => (),
+                x if PROC_STAT_IDLE.contains(&x) => {
+                    new_ticks.idle += field.trim().parse::<u64>().unwrap_or_else(failure)
+                }
+                x if PROC_STAT_KERNEL.contains(&x) => {
+                    new_ticks.kernel += field.trim().parse::<u64>().unwrap_or_else(failure)
+                }
+                _ => new_ticks.used += field.trim().parse::<u64>().unwrap_or_else(failure),
+            }
+        }
+        let used = new_ticks.used - self.used;
+        let kernel = new_ticks.kernel - self.kernel;
+        let idle = new_ticks.idle - self.idle;
+        let total = (used + kernel + idle) as f32;
 
-        (((delta_work_time / delta_time.as_millis() as f32) * 100.) / core_count as f32).min(100.)
-    }
+        let util = (used + kernel) as f32 / total;
+        let kernel_util = kernel as f32 / total;
 
-    pub fn cpu_usage_kernel(&self, prev_measurement: &Self, core_count: usize) -> f32 {
-        let delta_time = self.timestamp - prev_measurement.timestamp;
-        let delta_work_time = ((self
-            .kernel_work_time()
-            .saturating_sub(prev_measurement.kernel_work_time())
-            as f32)
-            * 1000.)
-            / *HZ as f32;
-
-        (((delta_work_time / delta_time.as_millis() as f32) * 100.) / core_count as f32).min(100.)
-    }
-
-    fn work_time(&self) -> u64 {
-        self.user
-            .saturating_add(self.nice)
-            .saturating_add(self.system)
-            .saturating_add(self.irq)
-            .saturating_add(self.softirq)
-    }
-
-    fn kernel_work_time(&self) -> u64 {
-        self.system
-            .saturating_add(self.irq)
-            .saturating_add(self.softirq)
+        *self = new_ticks;
+        (util * 100.0, kernel_util * 100.0)
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LinuxCpuStaticInfo {
     name: Arc<str>,
     logical_cpu_count: u32,
@@ -108,9 +90,6 @@ pub struct LinuxCpuStaticInfo {
     l2_cache: Option<u64>,
     l3_cache: Option<u64>,
     l4_cache: Option<u64>,
-    cpufreq_driver: Option<Arc<str>>,
-    cpufreq_governor: Option<Arc<str>>,
-    energy_performance_preference: Option<Arc<str>>,
 }
 
 impl Default for LinuxCpuStaticInfo {
@@ -126,9 +105,6 @@ impl Default for LinuxCpuStaticInfo {
             l2_cache: None,
             l3_cache: None,
             l4_cache: None,
-            cpufreq_driver: None,
-            cpufreq_governor: None,
-            energy_performance_preference: None,
         }
     }
 }
@@ -179,33 +155,25 @@ impl CpuStaticInfoExt for LinuxCpuStaticInfo {
     fn l4_cache(&self) -> Option<u64> {
         self.l4_cache
     }
-
-    fn cpufreq_driver(&self) -> Option<&str> {
-        self.cpufreq_driver.as_ref().map(|s| s.as_ref())
-    }
-
-    fn cpufreq_governor(&self) -> Option<&str> {
-        self.cpufreq_governor.as_ref().map(|s| s.as_ref())
-    }
-    fn energy_performance_preference(&self) -> Option<&str> {
-        self.energy_performance_preference
-            .as_ref()
-            .map(|s| s.as_ref())
-    }
 }
 
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct LinuxCpuDynamicInfo {
     overall_utilization_percent: f32,
     overall_kernel_utilization_percent: f32,
+    cpu_store_old: CpuTicks,
     per_logical_cpu_utilization_percent: Vec<f32>,
     per_logical_cpu_kernel_utilization_percent: Vec<f32>,
+    per_logical_cpu_store_old: Vec<CpuTicks>,
     current_frequency_mhz: u64,
     temperature: Option<f32>,
     process_count: u64,
     thread_count: u64,
     handle_count: u64,
     uptime_seconds: u64,
+    cpufreq_driver: Option<Arc<str>>,
+    cpufreq_governor: Option<Arc<str>>,
+    energy_performance_preference: Option<Arc<str>>,
 }
 
 impl LinuxCpuDynamicInfo {
@@ -213,14 +181,19 @@ impl LinuxCpuDynamicInfo {
         Self {
             overall_utilization_percent: 0.0,
             overall_kernel_utilization_percent: 0.0,
+            cpu_store_old: CpuTicks::default(),
             per_logical_cpu_utilization_percent: vec![],
             per_logical_cpu_kernel_utilization_percent: vec![],
+            per_logical_cpu_store_old: vec![],
             current_frequency_mhz: 0,
             temperature: None,
             process_count: 0,
             thread_count: 0,
             handle_count: 0,
             uptime_seconds: 0,
+            cpufreq_driver: None,
+            cpufreq_governor: None,
+            energy_performance_preference: None,
         }
     }
 }
@@ -267,6 +240,19 @@ impl<'a> CpuDynamicInfoExt<'a> for LinuxCpuDynamicInfo {
     fn uptime_seconds(&self) -> u64 {
         self.uptime_seconds
     }
+
+    fn cpufreq_driver(&self) -> Option<&str> {
+        self.cpufreq_driver.as_ref().map(|s| s.as_ref())
+    }
+
+    fn cpufreq_governor(&self) -> Option<&str> {
+        self.cpufreq_governor.as_ref().map(|s| s.as_ref())
+    }
+    fn energy_performance_preference(&self) -> Option<&str> {
+        self.energy_performance_preference
+            .as_ref()
+            .map(|s| s.as_ref())
+    }
 }
 
 #[derive(Debug)]
@@ -274,22 +260,21 @@ pub struct LinuxCpuInfo {
     static_info: LinuxCpuStaticInfo,
     dynamic_info: LinuxCpuDynamicInfo,
 
-    cpu_stats_cache: Vec<CpuStats>,
-    refresh_timestamp: std::time::Instant,
+    static_refresh_timestamp: Instant,
+    dynamic_refresh_timestamp: Instant,
 }
 
 impl LinuxCpuInfo {
     pub fn new() -> Self {
-        let mut cpu_stats_cache = Vec::with_capacity(*CPU_COUNT + 1);
-        cpu_stats_cache.resize(*CPU_COUNT + 1, CpuStats::default());
+        let mut cpu_store_old = Vec::with_capacity(*CPU_COUNT + 1);
+        cpu_store_old.resize(*CPU_COUNT + 1, CpuTicks::default());
 
         Self {
             static_info: LinuxCpuStaticInfo::new(),
             dynamic_info: LinuxCpuDynamicInfo::new(),
 
-            cpu_stats_cache,
-            refresh_timestamp: std::time::Instant::now()
-                - (STALE_DELTA + std::time::Duration::from_millis(1)),
+            static_refresh_timestamp: *INITIAL_REFRESH_TS,
+            dynamic_refresh_timestamp: *INITIAL_REFRESH_TS,
         }
     }
 
@@ -563,7 +548,6 @@ impl LinuxCpuInfo {
     }
 
     fn socket_count() -> Option<u8> {
-        use crate::critical;
         use std::{fs::*, io::*};
 
         let mut sockets = std::collections::HashSet::new();
@@ -661,8 +645,6 @@ impl LinuxCpuInfo {
     }
 
     fn base_frequency_khz() -> Option<u64> {
-        use crate::critical;
-
         fn read_from_sys_base_frequency() -> Option<u64> {
             match std::fs::read("/sys/devices/system/cpu/cpu0/cpufreq/base_frequency") {
                 Ok(content) => {
@@ -691,7 +673,7 @@ impl LinuxCpuInfo {
                     }
                 }
                 Err(e) => {
-                    critical!(
+                    debug!(
                         "Gatherer::CPU",
                         "Could not read base frequency from '/sys/devices/system/cpu/cpu0/cpufreq/base_frequency': {}",
                         e
@@ -730,7 +712,7 @@ impl LinuxCpuInfo {
                     }
                 }
                 Err(e) => {
-                    critical!(
+                    debug!(
                         "Gatherer::CPU",
                         "Could not read base frequency from '/sys/devices/system/cpu/cpu0/cpufreq/bios_limit': {}",
                         e
@@ -795,7 +777,7 @@ impl LinuxCpuInfo {
                 Some("KVM".into())
             };
         } else {
-            warning!("Gatherer::CPU", "Virtualization: `/dev/kvm` does not exist");
+            debug!("Gatherer::CPU", "Virtualization: `/dev/kvm` does not exist");
         }
 
         let mut buffer = [0u8; 9];
@@ -815,10 +797,9 @@ impl LinuxCpuInfo {
                 }
             }
             Err(e) => {
-                warning!(
+                debug!(
                     "Gatherer::CPU",
-                    "Virtualization: Failed to open /proc/xen/capabilities: {}",
-                    e
+                    "Virtualization: Failed to open /proc/xen/capabilities: {}", e
                 );
             }
         }
@@ -827,7 +808,6 @@ impl LinuxCpuInfo {
     }
 
     fn virtual_machine() -> Option<bool> {
-        use crate::critical;
         use dbus::blocking::{stdintf::org_freedesktop_dbus::Properties, *};
 
         let conn = match Connection::new_system() {
@@ -1135,24 +1115,23 @@ impl LinuxCpuInfo {
         result
     }
 
-    fn get_cpufreq_driver_governor() -> [Option<Arc<str>>; 3] {
-        use crate::critical;
-
+    fn get_cpufreq_driver_governor() -> (Option<Arc<str>>, Option<Arc<str>>, Option<Arc<str>>) {
         fn get_cpufreq_driver() -> Option<Arc<str>> {
             match std::fs::read("/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver") {
                 Ok(content) => match std::str::from_utf8(&content) {
                     Ok(content) => Some(Arc::from(format!("{}", content.trim()).as_str())),
                     Err(e) => {
-                        critical!(
-                                "Gatherer::CPU",
-                                "Could not read cpufreq driver from '/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver': {}",
-                                e
-                            );
-                        return None;
+                        debug!(
+                            "Gatherer::CPU",
+                            "Could not read cpufreq driver from '/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver': {}",
+                            e
+                        );
+
+                        None
                     }
                 },
                 Err(e) => {
-                    critical!(
+                    debug!(
                         "Gatherer::CPU",
                         "Could not read cpufreq driver from '/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver': {}",
                         e
@@ -1168,16 +1147,17 @@ impl LinuxCpuInfo {
                 Ok(content) => match std::str::from_utf8(&content) {
                     Ok(content) => Some(Arc::from(format!("{}", content.trim()).as_str())),
                     Err(e) => {
-                        critical!(
-                                "Gatherer::CPU",
-                                "Could not read cpufreq governor from '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor': {}",
-                                e
-                            );
-                        return None;
+                        debug!(
+                            "Gatherer::CPU",
+                            "Could not read cpufreq governor from '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor': {}",
+                            e
+                        );
+
+                        None
                     }
                 },
                 Err(e) => {
-                    critical!(
+                    debug!(
                         "Gatherer::CPU",
                         "Could not read cpufreq governor from '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor': {}",
                         e
@@ -1200,57 +1180,134 @@ impl LinuxCpuInfo {
                                 "Could not read power preference from '/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference': {}",
                                 e
                             );
-                        return None;
+
+                        None
                     }
                 },
                 Err(_) => None,
             }
         }
-        [
+        (
             get_cpufreq_driver(),
             get_cpufreq_governor(),
             energy_performance_preference(),
-        ]
+        )
     }
 
     // Adapted from `sysinfo` crate, linux/cpu.rs:415
     fn cpu_frequency_mhz() -> u64 {
-        use crate::critical;
+        #[inline(always)]
+        fn read_sys_cpufreq() -> Option<u64> {
+            let mut result = 0_u64;
 
-        let cpuinfo = match std::fs::read_to_string("/proc/cpuinfo") {
-            Ok(s) => s,
-            Err(e) => {
-                critical!(
-                    "Gatherer::CPU",
-                    "Failed to read frequency: Failed to open /proc/cpuinfo: {}",
-                    e
-                );
-                return 0;
+            let sys_dev_cpu = match std::fs::read_dir("/sys/devices/system/cpu") {
+                Ok(d) => d,
+                Err(e) => {
+                    debug!(
+                        "Gatherer::CPU",
+                        "Failed to read frequency: Failed to open /sys/devices/system/cpu: {}", e
+                    );
+                    return None;
+                }
+            };
+
+            let mut buffer = String::new();
+            for cpu in sys_dev_cpu.filter_map(|d| d.ok()).filter(|d| {
+                d.file_name().as_bytes().starts_with(b"cpu")
+                    && d.file_type().is_ok_and(|ty| ty.is_dir())
+            }) {
+                buffer.clear();
+
+                let mut path = cpu.path();
+                path.push("cpufreq/scaling_cur_freq");
+
+                let mut file = match OpenOptions::new().read(true).open(&path) {
+                    Ok(f) => f,
+                    Err(e) => {
+                        debug!(
+                            "Gatherer::CPU",
+                            "Failed to read frequency: Failed to open /sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq: {}",
+                            cpu.file_name().to_string_lossy(),
+                            e
+                        );
+                        continue;
+                    }
+                };
+
+                match file.read_to_string(&mut buffer) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        debug!(
+                            "Gatherer::CPU",
+                            "Failed to read frequency: Failed to read /sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq: {}",
+                            cpu.file_name().to_string_lossy(),
+                            e
+                        );
+                        continue;
+                    }
+                }
+
+                let freq = match buffer.trim().parse::<u64>() {
+                    Ok(f) => f,
+                    Err(e) => {
+                        debug!(
+                            "Gatherer::CPU",
+                            "Failed to read frequency: Failed to parse /sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq: {}",
+                            cpu.file_name().to_string_lossy(),
+                            e
+                        );
+                        continue;
+                    }
+                };
+
+                result = result.max(freq);
             }
-        };
 
-        let mut result = 0;
-        for line in cpuinfo.split('\n').filter(|line| {
-            line.starts_with("cpu MHz\t")
-                || line.starts_with("BogoMIPS")
-                || line.starts_with("clock\t")
-                || line.starts_with("bogomips per cpu")
-        }) {
-            result = line
-                .split(':')
-                .last()
-                .and_then(|val| val.replace("MHz", "").trim().parse::<f64>().ok())
-                .map(|speed| speed as u64)
-                .unwrap_or_default()
-                .max(result);
+            if result > 0 {
+                Some(result / 1000)
+            } else {
+                None
+            }
         }
 
-        result
+        #[inline(always)]
+        fn read_proc_cpuinfo() -> Option<u64> {
+            let cpuinfo = match std::fs::read_to_string("/proc/cpuinfo") {
+                Ok(s) => s,
+                Err(e) => {
+                    debug!(
+                        "Gatherer::CPU",
+                        "Failed to read frequency: Failed to open /proc/cpuinfo: {}", e
+                    );
+                    return None;
+                }
+            };
+
+            let mut result = 0;
+            for line in cpuinfo
+                .split('\n')
+                .filter(|line| line.starts_with("cpu MHz\t") || line.starts_with("clock\t"))
+            {
+                result = line
+                    .split(':')
+                    .last()
+                    .and_then(|val| val.replace("MHz", "").trim().parse::<f64>().ok())
+                    .map(|speed| speed as u64)
+                    .unwrap_or_default()
+                    .max(result);
+            }
+
+            Some(result)
+        }
+
+        if let Some(freq) = read_sys_cpufreq() {
+            return freq;
+        }
+
+        read_proc_cpuinfo().unwrap_or_default()
     }
 
     fn temperature() -> Option<f32> {
-        use crate::critical;
-
         let dir = match std::fs::read_dir("/sys/class/hwmon") {
             Ok(d) => d,
             Err(e) => {
@@ -1271,7 +1328,7 @@ impl LinuxCpuInfo {
                 Ok(name) => name.trim().to_lowercase(),
                 Err(_) => continue,
             };
-            if name != "k10temp" && name != "coretemp" {
+            if name != "k10temp" && name != "coretemp" && name != "zenpower" {
                 continue;
             }
 
@@ -1323,8 +1380,6 @@ impl LinuxCpuInfo {
     }
 
     fn handle_count() -> u64 {
-        use crate::critical;
-
         let file_nr = match std::fs::read_to_string("/proc/sys/fs/file-nr") {
             Ok(s) => s,
             Err(e) => {
@@ -1357,8 +1412,6 @@ impl LinuxCpuInfo {
     }
 
     fn uptime() -> std::time::Duration {
-        use crate::critical;
-
         let proc_uptime = match std::fs::read_to_string("/proc/uptime") {
             Ok(s) => s,
             Err(e) => {
@@ -1398,29 +1451,36 @@ impl<'a> CpuInfoExt<'a> for LinuxCpuInfo {
     type P = crate::platform::Processes;
 
     fn refresh_static_info_cache(&mut self) {
-        let cache_info = Self::cache_info();
-        let [cpufreq_driver, cpufreq_governor, energy_performance_preference] =
-            Self::get_cpufreq_driver_governor();
+        let now = Instant::now();
+        if now.duration_since(self.static_refresh_timestamp) < MIN_DELTA_REFRESH {
+            return;
+        }
+        self.static_refresh_timestamp = now;
 
-        self.static_info = LinuxCpuStaticInfo {
-            name: Self::name(),
-            logical_cpu_count: Self::logical_cpu_count(),
-            socket_count: Self::socket_count(),
-            base_frequency_khz: Self::base_frequency_khz(),
-            virtualization_technology: Self::virtualization(),
-            is_virtual_machine: Self::virtual_machine(),
-            l1_combined_cache: cache_info[1],
-            l2_cache: cache_info[2],
-            l3_cache: cache_info[3],
-            l4_cache: cache_info[4],
-            cpufreq_driver,
-            cpufreq_governor,
-            energy_performance_preference,
+        if self.static_info.logical_cpu_count == 0 {
+            let cache_info = Self::cache_info();
+
+            self.static_info = LinuxCpuStaticInfo {
+                name: Self::name(),
+                logical_cpu_count: Self::logical_cpu_count(),
+                socket_count: Self::socket_count(),
+                base_frequency_khz: Self::base_frequency_khz(),
+                virtualization_technology: Self::virtualization(),
+                is_virtual_machine: Self::virtual_machine(),
+                l1_combined_cache: cache_info[1],
+                l2_cache: cache_info[2],
+                l3_cache: cache_info[3],
+                l4_cache: cache_info[4],
+            }
         }
     }
 
     fn refresh_dynamic_info_cache(&mut self, processes: &crate::platform::Processes) {
-        use crate::critical;
+        let now = Instant::now();
+        if now.duration_since(self.dynamic_refresh_timestamp) < MIN_DELTA_REFRESH {
+            return;
+        }
+        self.dynamic_refresh_timestamp = now;
 
         self.dynamic_info
             .per_logical_cpu_utilization_percent
@@ -1428,79 +1488,37 @@ impl<'a> CpuInfoExt<'a> for LinuxCpuInfo {
         self.dynamic_info
             .per_logical_cpu_kernel_utilization_percent
             .resize(*CPU_COUNT, 0.0);
+        self.dynamic_info
+            .per_logical_cpu_store_old
+            .resize(*CPU_COUNT, CpuTicks::default());
 
         let per_core_usage =
             &mut self.dynamic_info.per_logical_cpu_utilization_percent[..*CPU_COUNT];
         let per_core_kernel_usage =
             &mut self.dynamic_info.per_logical_cpu_kernel_utilization_percent[..*CPU_COUNT];
-
-        fn extract_cpu_stats(line: &str) -> CpuStats {
-            let mut result = CpuStats::default();
-
-            for (i, value) in line.split_whitespace().skip(1).enumerate() {
-                match i {
-                    PROC_STAT_USER => {
-                        result.user = value.parse::<u64>().unwrap_or(0);
-                    }
-                    PROC_STAT_NICE => {
-                        result.nice = value.parse::<u64>().unwrap_or(0);
-                    }
-                    PROC_STAT_SYSTEM => {
-                        result.system = value.parse::<u64>().unwrap_or(0);
-                    }
-                    PROC_STAT_IRQ => {
-                        result.irq = value.parse::<u64>().unwrap_or(0);
-                    }
-                    PROC_STAT_SOFTIRQ => {
-                        result.softirq = value.parse::<u64>().unwrap_or(0);
-                    }
-                    PROC_STAT_GUEST => {
-                        let guest = value.parse::<u64>().unwrap_or(0);
-                        result.user = result.user.saturating_sub(guest);
-                    }
-                    PROC_STAT_GUEST_NICE => {
-                        let guest_nice = value.parse::<u64>().unwrap_or(0);
-                        result.nice = result.nice.saturating_sub(guest_nice);
-                    }
-                    _ => {}
-                }
-            }
-
-            result
-        }
+        let per_core_save = &mut self.dynamic_info.per_logical_cpu_store_old[..*CPU_COUNT];
 
         let proc_stat = std::fs::read_to_string("/proc/stat").unwrap_or_else(|e| {
             critical!("Gatherer::CPU", "Failed to read /proc/stat: {}", e);
             "".to_owned()
         });
 
-        let stats_cache = &mut self.cpu_stats_cache;
-
         let mut line_iter = proc_stat
             .lines()
             .map(|l| l.trim())
             .skip_while(|l| !l.starts_with("cpu"));
         if let Some(cpu_overall_line) = line_iter.next() {
-            let overall_stats = extract_cpu_stats(cpu_overall_line);
-            self.dynamic_info.overall_utilization_percent =
-                overall_stats.cpu_usage(&stats_cache[0], *CPU_COUNT);
-            self.dynamic_info.overall_kernel_utilization_percent =
-                overall_stats.cpu_usage_kernel(&stats_cache[0], *CPU_COUNT);
-            stats_cache[0] = overall_stats;
+            (
+                self.dynamic_info.overall_utilization_percent,
+                self.dynamic_info.overall_kernel_utilization_percent,
+            ) = self.dynamic_info.cpu_store_old.update(cpu_overall_line);
 
             for (i, line) in line_iter.enumerate() {
-                if i >= *CPU_COUNT {
+                if i >= *CPU_COUNT || !line.starts_with("cpu") {
                     break;
                 }
 
-                if !line.starts_with("cpu") {
-                    break;
-                }
-
-                let stats = extract_cpu_stats(line);
-                per_core_usage[i] = stats.cpu_usage(&stats_cache[i + 1], 1);
-                per_core_kernel_usage[i] = stats.cpu_usage_kernel(&stats_cache[i + 1], 1);
-                stats_cache[i + 1] = stats;
+                (per_core_usage[i], per_core_kernel_usage[i]) = per_core_save[i].update(line);
             }
         } else {
             self.dynamic_info.overall_utilization_percent = 0.;
@@ -1508,6 +1526,11 @@ impl<'a> CpuInfoExt<'a> for LinuxCpuInfo {
             per_core_usage.fill(0.);
             per_core_kernel_usage.fill(0.);
         }
+        (
+            self.dynamic_info.cpufreq_driver,
+            self.dynamic_info.cpufreq_governor,
+            self.dynamic_info.energy_performance_preference,
+        ) = Self::get_cpufreq_driver_governor();
 
         self.dynamic_info.current_frequency_mhz = Self::cpu_frequency_mhz();
         self.dynamic_info.temperature = Self::temperature();
@@ -1516,11 +1539,7 @@ impl<'a> CpuInfoExt<'a> for LinuxCpuInfo {
         self.dynamic_info.handle_count = Self::handle_count();
         self.dynamic_info.uptime_seconds = Self::uptime().as_secs();
 
-        self.refresh_timestamp = std::time::Instant::now();
-    }
-
-    fn is_dynamic_info_cache_stale(&self) -> bool {
-        std::time::Instant::now().duration_since(self.refresh_timestamp) > STALE_DELTA
+        self.static_refresh_timestamp = Instant::now();
     }
 
     fn static_info(&self) -> &Self::S {

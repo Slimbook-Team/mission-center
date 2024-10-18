@@ -1,6 +1,6 @@
 /* sys_info_v2/gatherer/src/platform/linux/processes.rs
  *
- * Copyright 2023 Romeo Calota
+ * Copyright 2024 Romeo Calota
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +19,13 @@
  */
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use lazy_static::lazy_static;
 
 use crate::platform::processes::*;
 
-use super::HZ;
+use super::{HZ, MIN_DELTA_REFRESH};
 
 lazy_static! {
     static ref PAGE_SIZE: usize = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
@@ -61,7 +62,7 @@ struct RawStats {
     pub net_bytes_sent: u64,
     pub net_bytes_recv: u64,
 
-    pub timestamp: std::time::Instant,
+    pub timestamp: Instant,
 }
 
 impl Default for RawStats {
@@ -76,7 +77,7 @@ impl Default for RawStats {
             net_bytes_sent: 0,
             net_bytes_recv: 0,
 
-            timestamp: std::time::Instant::now(),
+            timestamp: Instant::now(),
         }
     }
 }
@@ -153,16 +154,12 @@ impl<'a> ProcessExt<'a> for LinuxProcess {
 
 pub struct LinuxProcesses {
     process_cache: std::collections::HashMap<u32, LinuxProcess>,
-    refresh_timestamp: std::time::Instant,
+    refresh_timestamp: Instant,
 }
 
 impl LinuxProcesses {
     pub fn new() -> Self {
         Default::default()
-    }
-
-    pub fn process_list_mut(&mut self) -> &mut std::collections::HashMap<u32, LinuxProcess> {
-        &mut self.process_cache
     }
 }
 
@@ -265,11 +262,15 @@ impl<'a> ProcessesExt<'a> for LinuxProcesses {
             stat[PROC_PID_STAT_STIME].parse::<u64>().unwrap_or(0)
         }
 
+        let now = Instant::now();
+        if now.duration_since(self.refresh_timestamp) < MIN_DELTA_REFRESH {
+            return;
+        }
+        self.refresh_timestamp = now;
+
         let mut previous = std::mem::take(&mut self.process_cache);
         let result = &mut self.process_cache;
         result.reserve(previous.len());
-
-        let now = std::time::Instant::now();
 
         let mut stat_file_content = String::new();
         stat_file_content.reserve(512);
@@ -574,15 +575,15 @@ impl<'a> ProcessesExt<'a> for LinuxProcesses {
             result.insert(pid, process);
         }
 
-        self.refresh_timestamp = std::time::Instant::now();
-    }
-
-    fn is_cache_stale(&self) -> bool {
-        std::time::Instant::now().duration_since(self.refresh_timestamp) > STALE_DELTA
+        self.refresh_timestamp = Instant::now();
     }
 
     fn process_list(&'a self) -> &'a std::collections::HashMap<u32, LinuxProcess> {
         &self.process_cache
+    }
+
+    fn process_list_mut(&mut self) -> &mut std::collections::HashMap<u32, LinuxProcess> {
+        &mut self.process_cache
     }
 
     fn terminate_process(&self, pid: u32) {
@@ -622,6 +623,6 @@ mod test {
             .filter(|(_pid, proc)| proc.raw_stats.user_jiffies > 0)
             .map(|p| p.1)
             .take(10);
-        dbg!(sample);
+        dbg!(&sample);
     }
 }

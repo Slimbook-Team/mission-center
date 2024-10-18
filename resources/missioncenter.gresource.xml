@@ -2,22 +2,36 @@
 <gresources>
     <gresource prefix="/io/missioncenter/MissionCenter/icons/scalable/actions/">
         <file preprocess="xml-stripblanks">application-x-executable.svg</file>
+        <file preprocess="xml-stripblanks">arrow-circular-top-right-symbolic.svg</file>
         <file preprocess="xml-stripblanks">check-plain-symbolic.svg</file>
+        <file preprocess="xml-stripblanks">details-symbolic.svg</file>
+        <file preprocess="xml-stripblanks">edit-symbolic.svg</file>
         <file preprocess="xml-stripblanks">info-symbolic.svg</file>
+        <file preprocess="xml-stripblanks">list-enable-all-symbolic.svg</file>
+        <file preprocess="xml-stripblanks">list-drag-handle-symbolic.svg</file>
+        <file preprocess="xml-stripblanks">list-disable-all-symbolic.svg</file>
         <file preprocess="xml-stripblanks">nm-signal-00-symbolic.svg</file>
         <file preprocess="xml-stripblanks">nm-signal-25-symbolic.svg</file>
         <file preprocess="xml-stripblanks">nm-signal-50-symbolic.svg</file>
         <file preprocess="xml-stripblanks">nm-signal-75-symbolic.svg</file>
         <file preprocess="xml-stripblanks">nm-signal-100-symbolic.svg</file>
         <file preprocess="xml-stripblanks">overlapping-windows-symbolic.svg</file>
+        <file preprocess="xml-stripblanks">service-disabled.svg</file>
+        <file preprocess="xml-stripblanks">service-failed.svg</file>
+        <file preprocess="xml-stripblanks">service-running.svg</file>
+        <file preprocess="xml-stripblanks">service-stopped.svg</file>
         <file preprocess="xml-stripblanks">sidebar-toggle-left-symbolic.svg</file>
         <file preprocess="xml-stripblanks">speedometer-symbolic.svg</file>
     </gresource>
 
     <gresource prefix="/io/missioncenter/MissionCenter">
         <file preprocess="xml-stripblanks">line-dashed-disk.svg</file>
+        <file preprocess="xml-stripblanks">line-dashed-gpu.svg</file>
+        <file preprocess="xml-stripblanks">line-dashed-mem.svg</file>
         <file preprocess="xml-stripblanks">line-dashed-net.svg</file>
         <file preprocess="xml-stripblanks">line-solid-disk.svg</file>
+        <file preprocess="xml-stripblanks">line-solid-gpu.svg</file>
+        <file preprocess="xml-stripblanks">line-solid-mem.svg</file>
         <file preprocess="xml-stripblanks">line-solid-net.svg</file>
 
         <file preprocess="xml-stripblanks">ui/apps_page/column_header.ui</file>
@@ -30,10 +44,13 @@
         <file preprocess="xml-stripblanks">ui/performance_page/cpu_details.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/disk.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/disk_details.ui</file>
+        <file preprocess="xml-stripblanks">ui/performance_page/fan.ui</file>
+        <file preprocess="xml-stripblanks">ui/performance_page/fan_details.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/gpu.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/gpu_details.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/memory.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/memory_details.ui</file>
+        <file preprocess="xml-stripblanks">ui/performance_page/memory_info_tooltip.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/network.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/network_details.ui</file>
         <file preprocess="xml-stripblanks">ui/performance_page/page.ui</file>
@@ -41,6 +58,10 @@
 
         <file preprocess="xml-stripblanks">ui/preferences/page.ui</file>
         <file preprocess="xml-stripblanks">ui/preferences/window.ui</file>
+
+        <file preprocess="xml-stripblanks">ui/services_page/page.ui</file>
+        <file preprocess="xml-stripblanks">ui/services_page/context_menu_button.ui</file>
+        <file preprocess="xml-stripblanks">ui/services_page/details_dialog.ui</file>
 
         <file preprocess="xml-stripblanks">ui/window.ui</file>
 

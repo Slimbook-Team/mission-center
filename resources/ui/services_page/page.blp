@@ -1,0 +1,295 @@
+/* ui/services_page/page.blp
+ *
+ * Copyright 2024 Romeo Calota
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+using Gtk 4.0;
+using Adw 1;
+
+template $ServicesPage : Box {
+  orientation: vertical;
+
+  Adw.Clamp {
+    margin-start: 20;
+    margin-end: 20;
+    margin-top: 20;
+    margin-bottom: 20;
+
+    maximum-size: 2000;
+
+    child: Box {
+      orientation: vertical;
+
+      Box {
+        margin-bottom: 20;
+
+        Box {
+          orientation: vertical;
+
+          spacing: 10;
+
+          hexpand: true;
+
+          Label h1 {
+            styles [
+              "title-1",
+            ]
+
+            ellipsize: end;
+
+            halign: start;
+          }
+
+          Label h2 {
+            styles [
+              "faint-text",
+            ]
+
+            halign: start;
+          }
+        }
+
+        Box {
+          valign: end;
+          spacing: 5;
+
+          Box {
+            styles [
+              "linked"
+            ]
+
+            Button start {
+              action-name: "win.selected-svc-start";
+
+              child: Box {
+                spacing: 5;
+
+                halign: center;
+
+                Image {
+                  icon-name: "media-playback-start-symbolic";
+                }
+
+                Label start_label {
+                  label: _("Start");
+                }
+              };
+            }
+
+            Button stop {
+              action-name: "win.selected-svc-stop";
+
+              child: Box {
+                spacing: 5;
+
+                halign: center;
+
+                Image {
+                  icon-name: "media-playback-stop-symbolic";
+                }
+
+                Label stop_label {
+                  label: _("Stop");
+                }
+              };
+            }
+          }
+
+          Button restart {
+            action-name: "win.selected-svc-restart";
+
+            child: Box {
+              spacing: 5;
+
+              halign: center;
+
+              Image {
+                icon-name: "media-playlist-repeat-symbolic";
+              }
+
+              Label restart_label {
+                label: _("Restart");
+              }
+            };
+          }
+
+          Button status {
+            action-name: "services-page.details";
+
+            child: Box {
+              spacing: 5;
+
+              halign: center;
+
+              Image {
+                icon-name: "details-symbolic";
+              }
+
+              Label details_label {
+                label: _("Details");
+              }
+            };
+          }
+
+
+        }
+      }
+
+      ScrolledWindow {
+        hexpand: true;
+        vexpand: true;
+
+        ColumnView column_view {
+          styles [
+            "card",
+            "rich-list"
+          ]
+
+          reorderable: false;
+          show-row-separators: false;
+          show-column-separators: false;
+
+          ColumnViewColumn name_column {
+            title: _("Name");
+
+            fixed-width: 300;
+            resizable: true;
+
+            factory: BuilderListItemFactory {
+              template ListItem {
+                child: $ListCell {
+                  item-name: bind (template.item as <$ServicesListItem>).name;
+
+                  child: Box {
+                    margin-start: 10;
+                    margin-end: 10;
+                    margin-top: 7;
+                    margin-bottom: 7;
+
+                    spacing: 15;
+
+                    Image {
+                      halign: start;
+                      valign: center;
+
+                      icon-name: bind (template.item as <$ServicesListItem>).icon-name;
+                    }
+
+                    Label {
+                      halign: start;
+                      valign: center;
+
+                      label: bind (template.item as <$ServicesListItem>).name;
+                    }
+                  };
+                };
+              }
+            };
+          }
+
+          ColumnViewColumn pid_column {
+            title: _("PID");
+
+            resizable: true;
+
+            factory: BuilderListItemFactory {
+              template ListItem {
+                child: Label name {
+                  halign: end;
+                  valign: center;
+
+                  label: bind (template.item as <$ServicesListItem>).pid;
+                };
+              }
+            };
+          }
+
+          ColumnViewColumn description_column {
+            title: _("Description");
+
+            expand: true;
+            resizable: true;
+
+            factory: BuilderListItemFactory {
+              template ListItem {
+                child: Label {
+                  styles [
+                    "faint-text",
+                  ]
+
+                  margin-end: 10;
+
+                  halign: start;
+                  valign: center;
+
+                  ellipsize: middle;
+
+                  label: bind (template.item as <$ServicesListItem>).description;
+                };
+              }
+            };
+          }
+
+          ColumnViewColumn menu_column {
+            factory: BuilderListItemFactory {
+              template ListItem {
+                child: $ContextMenuButton {
+                  item-name: bind (template.item as <$ServicesListItem>).name;
+                };
+              }
+            };
+          }
+        }
+      }
+    };
+  }
+
+  PopoverMenu context_menu {
+    menu-model: context_menu_model;
+  }
+
+  details_dialog: $DetailsDialog {
+    follows-content-size: true;
+  };
+}
+
+menu context_menu_model {
+  section {
+    item {
+      label: _("Start");
+      action: "win.selected-svc-start";
+    }
+
+    item {
+      label: _("Stop");
+      action: "win.selected-svc-stop";
+    }
+
+    item {
+      label: _("Restart");
+      action: "win.selected-svc-restart";
+    }
+  }
+
+  section {
+    item {
+      label: _("Details");
+      action: "services-page.details";
+    }
+  }
+}

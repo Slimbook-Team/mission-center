@@ -21,12 +21,11 @@
 use std::cell::{Cell, OnceCell};
 
 use adw::subclass::prelude::*;
-use glib::{clone, ParamSpec, Properties, Value};
+use glib::{ParamSpec, Properties, Value};
 use gtk::{gio, glib, prelude::*};
 
-use crate::{application::BASE_POINTS, application::INTERVAL_STEP, i18n::*};
-
-use super::widgets::GraphWidget;
+use super::{widgets::GraphWidget, PageExt};
+use crate::{application::INTERVAL_STEP, i18n::*, settings};
 
 mod imp {
     use super::*;
@@ -40,15 +39,9 @@ mod imp {
     #[template(resource = "/io/missioncenter/MissionCenter/ui/performance_page/cpu.ui")]
     pub struct PerformancePageCpu {
         #[template_child]
-        pub utilization_label_all: TemplateChild<gtk::Label>,
-        #[template_child]
-        pub utilization_label_overall: TemplateChild<gtk::Label>,
-        #[template_child]
         pub cpu_name: TemplateChild<gtk::Label>,
         #[template_child]
         pub usage_graphs: TemplateChild<gtk::Grid>,
-        #[template_child]
-        pub overall_graph_labels: TemplateChild<gtk::Box>,
         #[template_child]
         pub graph_max_duration: TemplateChild<gtk::Label>,
         #[template_child]
@@ -59,8 +52,6 @@ mod imp {
         summary_mode: Cell<bool>,
 
         pub graph_widgets: Cell<Vec<GraphWidget>>,
-
-        pub settings: Cell<Option<gio::Settings>>,
 
         #[property(get = Self::infobar_content, type = Option < gtk::Widget >)]
         pub infobar_content: OnceCell<gtk::Box>,
@@ -80,7 +71,9 @@ mod imp {
         pub l2_cache: OnceCell<gtk::Label>,
         pub l3_cache: OnceCell<gtk::Label>,
         pub cpufreq_driver: OnceCell<gtk::Label>,
+        pub cpufreq_driver_label: OnceCell<gtk::Label>,
         pub cpufreq_governor: OnceCell<gtk::Label>,
+        pub cpufreq_governor_label: OnceCell<gtk::Label>,
         pub energy_performance_preference: OnceCell<gtk::Label>,
         pub energy_performance_preference_label: OnceCell<gtk::Label>,
     }
@@ -88,19 +81,14 @@ mod imp {
     impl Default for PerformancePageCpu {
         fn default() -> Self {
             Self {
-                utilization_label_all: Default::default(),
-                utilization_label_overall: Default::default(),
                 cpu_name: Default::default(),
                 usage_graphs: Default::default(),
-                overall_graph_labels: Default::default(),
                 graph_max_duration: Default::default(),
                 context_menu: Default::default(),
                 base_color: Cell::new(gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 1.0)),
                 summary_mode: Cell::new(false),
 
                 graph_widgets: Cell::new(Vec::new()),
-
-                settings: Cell::new(None),
 
                 infobar_content: Default::default(),
                 utilization: Default::default(),
@@ -118,7 +106,9 @@ mod imp {
                 l2_cache: Default::default(),
                 l3_cache: Default::default(),
                 cpufreq_driver: Default::default(),
+                cpufreq_driver_label: Default::default(),
                 cpufreq_governor: Default::default(),
+                cpufreq_governor_label: Default::default(),
                 energy_performance_preference: Default::default(),
                 energy_performance_preference_label: Default::default(),
             }
@@ -145,18 +135,9 @@ mod imp {
         fn configure_actions(this: &super::PerformancePageCpu) {
             use gtk::glib::*;
 
-            let settings = this.imp().settings.take();
-            let mut graph_selection = GRAPH_SELECTION_OVERALL;
-            let mut show_kernel_times = false;
-            match settings {
-                Some(settings) => {
-                    graph_selection = settings.int("performance-page-cpu-graph");
-                    show_kernel_times = settings.boolean("performance-page-kernel-times");
-
-                    this.imp().settings.set(Some(settings));
-                }
-                None => {}
-            }
+            let settings = settings!();
+            let graph_selection = settings.int("performance-page-cpu-graph");
+            let show_kernel_times = settings.boolean("performance-page-kernel-times");
 
             let actions = gio::SimpleActionGroup::new();
             this.insert_action_group("graph", Some(&actions));
@@ -172,63 +153,73 @@ mod imp {
                 &glib::Variant::from(graph_selection == GRAPH_SELECTION_ALL),
             );
             let apa = all_processors_action.clone();
-            overall_action.connect_activate(clone!(@weak this => move |action, _| {
-                use gtk::glib::*;
+            overall_action.connect_activate({
+                let this = this.downgrade();
+                move |action, _| {
+                    use gtk::glib::*;
 
-                let graph_widgets = this.imp().graph_widgets.take();
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
 
-                graph_widgets[0].set_visible(true);
-                this.imp().overall_graph_labels.set_visible(true);
-                this.imp().utilization_label_overall.set_visible(true);
-                this.imp().utilization_label_all.set_visible(false);
+                    let graph_widgets = this.imp().graph_widgets.take();
 
-                for graph_widget in graph_widgets.iter().skip(1) {
-                    graph_widget.set_visible(false);
+                    graph_widgets[0].set_visible(true);
+
+                    for graph_widget in graph_widgets.iter().skip(1) {
+                        graph_widget.set_visible(false);
+                    }
+
+                    action.set_state(&glib::Variant::from(true));
+                    apa.set_state(&glib::Variant::from(false));
+
+                    settings!()
+                        .set_int("performance-page-cpu-graph", GRAPH_SELECTION_OVERALL)
+                        .unwrap_or_else(|_| {
+                            g_critical!(
+                                "MissionCenter::PerformancePage",
+                                "Failed to save selected CPU graph"
+                            );
+                        });
+
+                    this.imp().graph_widgets.set(graph_widgets);
                 }
-
-                action.set_state(&glib::Variant::from(true));
-                apa.set_state(&glib::Variant::from(false));
-
-                let settings = this.imp().settings.take();
-                if settings.is_some() {
-                    let settings = settings.unwrap();
-                    settings.set_int("performance-page-cpu-graph", GRAPH_SELECTION_OVERALL).unwrap_or_else(|_| {
-                        g_critical!("MissionCenter::PerformancePage", "Failed to save selected CPU graph");
-                    });
-                    this.imp().settings.set(Some(settings));
-                }
-
-                this.imp().graph_widgets.set(graph_widgets);
-            }));
+            });
             actions.add_action(&overall_action);
 
             let ova = overall_action.clone();
-            all_processors_action.connect_activate(clone!(@weak this => move |action, _| {
-                let graph_widgets = this.imp().graph_widgets.take();
+            all_processors_action.connect_activate({
+                let this = this.downgrade();
+                move |action, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
 
-                graph_widgets[0].set_visible(false);
-                this.imp().overall_graph_labels.set_visible(false);
-                this.imp().utilization_label_overall.set_visible(false);
-                this.imp().utilization_label_all.set_visible(true);
+                    let graph_widgets = this.imp().graph_widgets.take();
 
-                for graph_widget in graph_widgets.iter().skip(1) {
-                    graph_widget.set_visible(true);
+                    graph_widgets[0].set_visible(false);
+
+                    for graph_widget in graph_widgets.iter().skip(1) {
+                        graph_widget.set_visible(true);
+                    }
+
+                    action.set_state(&glib::Variant::from(true));
+                    ova.set_state(&glib::Variant::from(false));
+
+                    settings!()
+                        .set_int("performance-page-cpu-graph", GRAPH_SELECTION_ALL)
+                        .unwrap_or_else(|_| {
+                            g_critical!(
+                                "MissionCenter::PerformancePage",
+                                "Failed to save selected CPU graph"
+                            );
+                        });
+
+                    this.imp().graph_widgets.set(graph_widgets);
                 }
-
-                action.set_state(&glib::Variant::from(true));
-                ova.set_state(&glib::Variant::from(false));
-
-                let settings = this.imp().settings.take();
-                if settings.is_some() {
-                    let settings = settings.unwrap();
-                    settings.set_int("performance-page-cpu-graph", GRAPH_SELECTION_ALL).unwrap_or_else(|_| {
-                        g_critical!("MissionCenter::PerformancePage", "Failed to save selected CPU graph");
-                    });
-                    this.imp().settings.set(Some(settings));
-                }
-
-                this.imp().graph_widgets.set(graph_widgets);
-            }));
+            });
             actions.add_action(&all_processors_action);
 
             let action = gio::SimpleAction::new_stateful(
@@ -236,56 +227,77 @@ mod imp {
                 None,
                 &glib::Variant::from(show_kernel_times),
             );
-            action.connect_activate(clone!(@weak this => move |action, _| {
-                let graph_widgets = this.imp().graph_widgets.take();
+            action.connect_activate({
+                let this = this.downgrade();
+                move |action, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
 
-                let visible = !action.state().and_then(|v|v.get::<bool>()).unwrap_or(false);
+                    let graph_widgets = this.imp().graph_widgets.take();
 
-                graph_widgets[0].set_data_visible(1, visible);
-                for graph_widget in graph_widgets.iter().skip(1) {
-                    graph_widget.set_data_visible(1, visible);
+                    let visible = !action
+                        .state()
+                        .and_then(|v| v.get::<bool>())
+                        .unwrap_or(false);
+
+                    graph_widgets[0].set_data_visible(1, visible);
+                    for graph_widget in graph_widgets.iter().skip(1) {
+                        graph_widget.set_data_visible(1, visible);
+                    }
+
+                    action.set_state(&glib::Variant::from(visible));
+
+                    settings!()
+                        .set_boolean("performance-page-kernel-times", visible)
+                        .unwrap_or_else(|_| {
+                            g_critical!(
+                                "MissionCenter::PerformancePage",
+                                "Failed to save kernel times setting"
+                            );
+                        });
+
+                    this.imp().graph_widgets.set(graph_widgets);
                 }
-
-                action.set_state(&glib::Variant::from(visible));
-
-                let settings = this.imp().settings.take();
-                if settings.is_some() {
-                    let settings = settings.unwrap();
-                    settings.set_boolean("performance-page-kernel-times", visible).unwrap_or_else(|_| {
-                        g_critical!("MissionCenter::PerformancePage", "Failed to save kernel times setting");
-                    });
-                    this.imp().settings.set(Some(settings));
-                }
-
-                this.imp().graph_widgets.set(graph_widgets);
-            }));
+            });
             actions.add_action(&action);
 
             let action = gio::SimpleAction::new("copy", None);
-            action.connect_activate(clone!(@weak this => move |_, _| {
-                let clipboard = this.clipboard();
-                clipboard.set_text(this.imp().data_summary().as_str());
-            }));
+            action.connect_activate({
+                let this = this.downgrade();
+                move |_, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+
+                    let clipboard = this.clipboard();
+                    clipboard.set_text(this.imp().data_summary().as_str());
+                }
+            });
             actions.add_action(&action);
         }
 
         fn configure_context_menu(this: &super::PerformancePageCpu) {
             let right_click_controller = gtk::GestureClick::new();
             right_click_controller.set_button(3); // Secondary click (AKA right click)
-            right_click_controller.connect_released(
-                clone!(@weak this => move |_click, _n_press, x, y| {
-                    this
-                        .imp()
-                        .context_menu
-                        .set_pointing_to(Some(&gtk::gdk::Rectangle::new(
-                            x.round() as i32,
-                            y.round() as i32,
-                            1,
-                            1,
-                        )));
-                    this.imp().context_menu.popup();
-                }),
-            );
+            right_click_controller.connect_released({
+                let this = this.downgrade();
+                move |_click, _n_press, x, y| {
+                    if let Some(this) = this.upgrade() {
+                        this.imp()
+                            .context_menu
+                            .set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+                                x.round() as i32,
+                                y.round() as i32,
+                                1,
+                                1,
+                            )));
+                        this.imp().context_menu.popup();
+                    }
+                }
+            });
             this.add_controller(right_click_controller);
         }
     }
@@ -355,7 +367,7 @@ mod imp {
                     if size.1.is_empty() { "" } else { "i" }
                 )
             } else {
-                format!("N/A")
+                i18n("N/A")
             };
             if let Some(l1_cache) = this.l1_cache.get() {
                 l1_cache.set_text(&l1_cache_size);
@@ -370,7 +382,7 @@ mod imp {
                     if size.1.is_empty() { "" } else { "i" }
                 )
             } else {
-                format!("N/A")
+                i18n("N/A")
             };
             if let Some(l2_cache) = this.l2_cache.get() {
                 l2_cache.set_text(&l2_cache_size);
@@ -385,7 +397,7 @@ mod imp {
                     if size.1.is_empty() { "" } else { "i" }
                 )
             } else {
-                format!("N/A")
+                i18n("N/A")
             };
             if let Some(l3_cache) = this.l3_cache.get() {
                 l3_cache.set_text(&l3_cache_size);
@@ -400,42 +412,8 @@ mod imp {
                     if size.1.is_empty() { "" } else { "i" }
                 )
             } else {
-                format!("N/A")
+                i18n("N/A")
             };
-
-            if let Some(cpufreq_driver) = this.cpufreq_driver.get() {
-                if let Some(driver) = static_cpu_info.cpufreq_driver.as_ref() {
-                    cpufreq_driver.set_text(driver.as_ref());
-                } else {
-                    cpufreq_driver.set_text(&i18n("Unsupported"));
-                }
-            }
-
-            if let Some(cpufreq_governor) = this.cpufreq_governor.get() {
-                if let Some(governor) = static_cpu_info.cpufreq_governor.as_ref() {
-                    cpufreq_governor.set_text(governor.as_ref());
-                } else {
-                    cpufreq_governor.set_text(&i18n("Unsupported"));
-                }
-            }
-
-            if let (
-                Some(energy_performance_preference),
-                Some(energy_performance_preference_label),
-            ) = (
-                this.energy_performance_preference.get(),
-                this.energy_performance_preference_label.get(),
-            ) {
-                if let Some(governor) = static_cpu_info.energy_performance_preference.as_ref() {
-                    energy_performance_preference.set_text(governor.as_ref());
-                    energy_performance_preference.set_visible(true);
-                    energy_performance_preference_label.set_visible(true);
-                } else {
-                    energy_performance_preference.set_text(&i18n("Unsupported"));
-                    energy_performance_preference.set_visible(false);
-                    energy_performance_preference_label.set_visible(false);
-                }
-            }
 
             true
         }
@@ -445,6 +423,7 @@ mod imp {
             readings: &crate::sys_info_v2::Readings,
         ) -> bool {
             let mut graph_widgets = this.imp().graph_widgets.take();
+            let this = this.imp();
 
             let dynamic_cpu_info = &readings.cpu_dynamic_info;
 
@@ -467,31 +446,31 @@ mod imp {
                 );
             }
 
-            this.imp().graph_widgets.set(graph_widgets);
+            this.graph_widgets.set(graph_widgets);
 
-            if let Some(utilization) = this.imp().utilization.get() {
+            if let Some(utilization) = this.utilization.get() {
                 utilization.set_text(&format!(
                     "{}%",
                     dynamic_cpu_info.overall_utilization_percent.round()
                 ));
             }
 
-            if let Some(speed) = this.imp().speed.get() {
+            if let Some(speed) = this.speed.get() {
                 speed.set_text(&format!(
                     "{:.2} GHz",
                     readings.cpu_dynamic_info.current_frequency_mhz as f32 / 1024.
                 ));
             }
 
-            if let Some(processes) = this.imp().processes.get() {
+            if let Some(processes) = this.processes.get() {
                 processes.set_text(&format!("{}", dynamic_cpu_info.process_count));
             }
 
-            if let Some(threads) = this.imp().threads.get() {
+            if let Some(threads) = this.threads.get() {
                 threads.set_text(&format!("{}", dynamic_cpu_info.thread_count));
             }
 
-            if let Some(handles) = this.imp().handles.get() {
+            if let Some(handles) = this.handles.get() {
                 handles.set_text(&format!("{}", dynamic_cpu_info.handle_count));
             }
 
@@ -501,13 +480,50 @@ mod imp {
             let minutes = (uptime % 3600) / 60;
             let seconds = uptime % 60;
 
-            if let Some(uptime) = this.imp().uptime.get() {
+            if let Some(uptime) = this.uptime.get() {
                 uptime.set_text(&format!(
                     "{:02}:{:02}:{:02}:{:02}",
                     days, hours, minutes, seconds
                 ));
             }
 
+            if let (Some(cpufreq_driver), Some(cpufreq_driver_label)) =
+                (this.cpufreq_driver.get(), this.cpufreq_driver_label.get())
+            {
+                if let Some(governor) = dynamic_cpu_info.cpufreq_driver.as_ref() {
+                    cpufreq_driver.set_text(governor.as_ref());
+                } else {
+                    cpufreq_driver.set_visible(false);
+                    cpufreq_driver_label.set_visible(false);
+                }
+            }
+
+            if let (Some(cpufreq_governor), Some(cpufreq_governor_label)) = (
+                this.cpufreq_governor.get(),
+                this.cpufreq_governor_label.get(),
+            ) {
+                if let Some(governor) = dynamic_cpu_info.cpufreq_governor.as_ref() {
+                    cpufreq_governor.set_text(governor.as_ref());
+                } else {
+                    cpufreq_governor.set_visible(false);
+                    cpufreq_governor_label.set_visible(false);
+                }
+            }
+
+            if let (
+                Some(energy_performance_preference),
+                Some(energy_performance_preference_label),
+            ) = (
+                this.energy_performance_preference.get(),
+                this.energy_performance_preference_label.get(),
+            ) {
+                if let Some(governor) = dynamic_cpu_info.energy_performance_preference.as_ref() {
+                    energy_performance_preference.set_text(governor.as_ref());
+                } else {
+                    energy_performance_preference.set_visible(false);
+                    energy_performance_preference_label.set_visible(false);
+                }
+            }
             true
         }
 
@@ -600,9 +616,9 @@ mod imp {
 
             format!(
                 r#"CPU
-            
+
             {}
-            
+
             Base speed:         {}
             Sockets:            {}
             Virtual processors: {}
@@ -614,7 +630,7 @@ mod imp {
             Cpufreq driver:     {}
             Cpufreq governor:   {}
             Power preference:   {}
-            
+
             Utilization: {}
             Speed:       {}
             Processes:   {}
@@ -647,20 +663,11 @@ mod imp {
 
             let col_count = Self::compute_column_count(cpu_count);
 
-            let settings = self.settings.take();
-            let mut graph_selection = GRAPH_SELECTION_OVERALL;
-            let mut show_kernel_times = false;
-            let mut data_points = BASE_POINTS;
-            match settings {
-                Some(settings) => {
-                    graph_selection = settings.int("performance-page-cpu-graph");
-                    show_kernel_times = settings.boolean("performance-page-kernel-times");
-                    data_points = settings.int("perfomance-page-data-points") as u32;
-
-                    self.settings.set(Some(settings));
-                }
-                None => {}
-            }
+            let settings = settings!();
+            let graph_selection = settings.int("performance-page-cpu-graph");
+            let show_kernel_times = settings.boolean("performance-page-kernel-times");
+            let data_points = settings.int("performance-page-data-points") as u32;
+            let smooth = settings.boolean("performance-smooth-graphs");
 
             // Add one for overall CPU utilization
             let mut graph_widgets = vec![];
@@ -668,6 +675,7 @@ mod imp {
             graph_widgets.push(GraphWidget::new());
             self.usage_graphs.attach(&graph_widgets[0], 0, 0, 1, 1);
             graph_widgets[0].set_data_points(data_points);
+            graph_widgets[0].set_smooth_graphs(smooth);
             graph_widgets[0].set_scroll(true);
             graph_widgets[0].set_data_set_count(2);
             graph_widgets[0].set_filled(1, false);
@@ -697,13 +705,6 @@ mod imp {
 
                 None
             });
-
-            self.overall_graph_labels
-                .set_visible(graph_selection == GRAPH_SELECTION_OVERALL);
-            self.utilization_label_overall
-                .set_visible(graph_selection == GRAPH_SELECTION_OVERALL);
-            self.utilization_label_all
-                .set_visible(graph_selection == GRAPH_SELECTION_ALL);
 
             for i in 0..cpu_count {
                 let row_idx = i / col_count;
@@ -739,6 +740,7 @@ mod imp {
                     });
                 }
                 graph_widgets[graph_widget_index].set_data_points(data_points);
+                graph_widgets[graph_widget_index].set_smooth_graphs(smooth);
                 graph_widgets[graph_widget_index].set_data_set_count(2);
                 graph_widgets[graph_widget_index].set_filled(1, false);
                 graph_widgets[graph_widget_index].set_dashed(1, true);
@@ -807,10 +809,6 @@ mod imp {
 
             let obj = self.obj();
             let this = obj.upcast_ref::<super::PerformancePageCpu>().clone();
-
-            if let Some(app) = crate::MissionCenterApplication::default_instance() {
-                self.settings.set(app.settings());
-            }
 
             Self::configure_actions(&this);
             Self::configure_context_menu(&this);
@@ -899,20 +897,32 @@ mod imp {
                     .object::<gtk::Label>("cpufreq_driver")
                     .expect("Could not find `cpufreq_driver` object in details pane"),
             );
+            let _ = self.cpufreq_driver_label.set(
+                sidebar_content_builder
+                    .object::<gtk::Label>("cpufreq_driver_label")
+                    .expect("Could not find `cpufreq_driver_label` object in details pane"),
+            );
             let _ = self.cpufreq_governor.set(
                 sidebar_content_builder
                     .object::<gtk::Label>("cpufreq_governor")
                     .expect("Could not find `cpufreq_governor` object in details pane"),
             );
+            let _ = self.cpufreq_governor_label.set(
+                sidebar_content_builder
+                    .object::<gtk::Label>("cpufreq_governor_label")
+                    .expect("Could not find `cpufreq_governor_label` object in details pane"),
+            );
             let _ = self.energy_performance_preference.set(
                 sidebar_content_builder
                     .object::<gtk::Label>("energy_performance_preference")
-                    .expect("Could not find `cpufreq_governor` object in details pane"),
+                    .expect(
+                        "Could not find `energy_performance_preference` object in details pane",
+                    ),
             );
             let _ = self.energy_performance_preference_label.set(
                 sidebar_content_builder
                     .object::<gtk::Label>("energy_performance_preference_label")
-                    .expect("Could not find `cpufreq_governor` object in details pane"),
+                    .expect("Could not find `energy_performance_preference_label` object in details pane"),
             );
         }
     }
@@ -928,6 +938,22 @@ glib::wrapper! {
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
+impl PageExt for PerformancePageCpu {
+    fn infobar_collapsed(&self) {
+        self.imp()
+            .infobar_content
+            .get()
+            .and_then(|ic| Some(ic.set_margin_top(10)));
+    }
+
+    fn infobar_uncollapsed(&self) {
+        self.imp()
+            .infobar_content
+            .get()
+            .and_then(|ic| Some(ic.set_margin_top(65)));
+    }
+}
+
 impl PerformancePageCpu {
     pub fn new(settings: &gio::Settings) -> Self {
         let this: Self = glib::Object::builder().build();
@@ -938,8 +964,9 @@ impl PerformancePageCpu {
         ) {
             let this = this.imp();
 
-            let data_points = settings.int("perfomance-page-data-points") as u32;
-            let graph_max_duration = (((settings.int("app-update-interval") as f64)
+            let data_points = settings.int("performance-page-data-points") as u32;
+            let smooth = settings.boolean("performance-smooth-graphs");
+            let graph_max_duration = (((settings.uint64("app-update-interval-u64") as f64)
                 * INTERVAL_STEP)
                 * (data_points as f64))
                 .round() as u32;
@@ -974,38 +1001,39 @@ impl PerformancePageCpu {
                 }
             ));
 
-            this.utilization_label_all.set_text(&*i18n_f(
-                "Utilization Over {}{}",
-                &[
-                    if mins > 0 { mins_to_string } else { "" },
-                    if graph_max_duration % 60 > 0 {
-                        seconds_to_string
-                    } else {
-                        ""
-                    },
-                ],
-            ));
-
             let widgets = this.graph_widgets.take();
             for graph_widget in &widgets {
                 graph_widget.set_data_points(data_points);
+                graph_widget.set_smooth_graphs(smooth);
             }
             this.graph_widgets.set(widgets);
         }
         update_refresh_rate_sensitive_labels(&this, settings);
 
-        settings.connect_changed(
-            Some("perfomance-page-data-points"),
-            clone!(@weak this => move |settings, _| {
-                update_refresh_rate_sensitive_labels(&this, settings);
-            }),
-        );
-        settings.connect_changed(
-            Some("app-update-interval"),
-            clone!(@weak this => move |settings, _| {
-                update_refresh_rate_sensitive_labels(&this, settings);
-            }),
-        );
+        settings.connect_changed(Some("performance-page-data-points"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
+        settings.connect_changed(Some("app-update-interval-u64"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
+        settings.connect_changed(Some("performance-smooth-graphs"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
 
         this
     }
@@ -1016,19 +1044,5 @@ impl PerformancePageCpu {
 
     pub fn update_readings(&self, readings: &crate::sys_info_v2::Readings) -> bool {
         imp::PerformancePageCpu::update_readings(self, readings)
-    }
-
-    pub fn infobar_collapsed(&self) {
-        self.imp()
-            .infobar_content
-            .get()
-            .and_then(|ic| Some(ic.set_margin_top(10)));
-    }
-
-    pub fn infobar_uncollapsed(&self) {
-        self.imp()
-            .infobar_content
-            .get()
-            .and_then(|ic| Some(ic.set_margin_top(65)));
     }
 }

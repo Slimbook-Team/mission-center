@@ -19,11 +19,11 @@
  */
 
 using Gtk 4.0;
-using Adw 1;
 
 template $PerformancePageGpu: Box {
   orientation: vertical;
   margin-bottom: 10;
+  spacing: 7;
 
   WindowHandle {
     child: Box description {
@@ -55,84 +55,12 @@ template $PerformancePageGpu: Box {
     };
   }
 
-  Box graph_top {
+  Box {
+    homogeneous: true;
     orientation: vertical;
-
-    margin-top: 10;
-
-    Box {
-      Label {
-        styles [
-          "caption",
-        ]
-
-        hexpand: true;
-        halign: start;
-        label: _("Utilization");
-      }
-      Label overall_percent {
-        styles [
-          "caption",
-        ]
-      }
-    }
-
-    $GraphWidget usage_graph_overall {
-      vexpand: true;
-      hexpand: true;
-
-      width-request: 100;
-      height-request: 50;
-
-      base-color: bind template.base-color;
-      data-set-count: 1;
-      scroll: true;
-    }
-  }
-
-  Box decode_encode_graphs {
-    orientation: horizontal;
-
-    margin-top: 10;
     spacing: 10;
 
-    Box encode_graph {
-      orientation: vertical;
-
-      Box {
-        Label encode_label {
-          styles [
-            "caption",
-          ]
-
-          hexpand: true;
-          halign: start;
-          label: _("Video encode");
-          ellipsize: middle;
-        }
-
-        Label encode_percent {
-          styles [
-            "caption",
-          ]
-        }
-      }
-
-      Adw.Clamp {
-        orientation: vertical;
-
-        width-request: 40;
-        maximum-size: 170;
-
-        child: $GraphWidget usage_graph_encode {
-          base-color: bind template.base-color;
-          data-set-count: 1;
-          scroll: true;
-        };
-      }
-    }
-
-    Box decode_graph {
+    Box graph_top {
       orientation: vertical;
 
       Box {
@@ -140,69 +68,122 @@ template $PerformancePageGpu: Box {
           styles [
             "caption",
           ]
+          label: _("Utilization over ");
+        }
+        Label graph_max_duration {
+          styles [
+              "caption",
+          ]
 
           hexpand: true;
           halign: start;
-          label: _("Video decode");
-          ellipsize: middle;
         }
-
-        Label decode_percent {
+        Label {
           styles [
             "caption",
           ]
+          label: _("100%");
         }
       }
 
-      Adw.Clamp {
-        orientation: vertical;
-
-        width-request: 40;
-        maximum-size: 170;
-
-        child: $GraphWidget usage_graph_decode {
-          base-color: bind template.base-color;
-          data-set-count: 1;
-          scroll: true;
-        };
-      }
-    }
-  }
-
-  Box memory_graph {
-    orientation: vertical;
-
-    margin-top: 10;
-
-    Box {
-      Label {
-        styles [
-          "caption",
-        ]
-
+      $GraphWidget usage_graph_overall {
+        vexpand: true;
         hexpand: true;
-        halign: start;
-        label: _("Memory usage");
-      }
 
-      Label total_memory {
-        styles [
-          "caption",
-        ]
-      }
-    }
+        width-request: 100;
+        height-request: 50;
 
-    Adw.Clamp {
-      orientation: vertical;
-
-      width-request: 40;
-      maximum-size: 70;
-
-      child: $GraphWidget usage_graph_memory {
         base-color: bind template.base-color;
         data-set-count: 1;
         scroll: true;
-      };
+      }
+    }
+    Box {
+      orientation: vertical;
+      spacing: 10;
+
+      Box encode_decode_graph {
+        orientation: vertical;
+
+        Box {
+          Label {
+            styles [
+              "caption",
+            ]
+
+            label: _("Video encode/decode utilization over ");
+          }
+          Label {
+            styles [
+              "caption",
+            ]
+
+            hexpand: true;
+            halign: start;
+            label: bind graph_max_duration.label;
+          }
+
+          Label {
+            styles [
+              "caption",
+            ]
+            label: _("100%");
+          }
+        }
+
+        $GraphWidget usage_graph_encode_decode {
+          vexpand: true;
+          hexpand: true;
+
+          width-request: 50;
+          height-request: 30;
+
+          base-color: bind template.base-color;
+          data-set-count: 2;
+          scroll: true;
+        }
+      }
+
+      Box memory_graph {
+        orientation: vertical;
+
+        Box {
+          Label memory_graph_label {
+            styles [
+              "caption",
+            ]
+
+            label: _("Memory usage over ");
+          }
+          Label {
+            styles [
+            "caption",
+            ]
+
+            hexpand: true;
+            halign: start;
+            label: bind graph_max_duration.label;
+          }
+
+          Label total_memory {
+            styles [
+              "caption",
+            ]
+          }
+        }
+
+        $GraphWidget usage_graph_memory {
+          vexpand: true;
+          hexpand: true;
+
+          width-request: 100;
+          height-request: 40;
+
+          base-color: bind template.base-color;
+          data-set-count: 2;
+          scroll: true;
+        }
+      }
     }
   }
 
@@ -213,6 +194,13 @@ template $PerformancePageGpu: Box {
 }
 
 menu context_menu_model {
+  section {
+    item {
+      label: _("Show Encode/Decode Usage");
+      action: "graph.enc_dec_usage";
+    }
+  }
+
   section {
     item {
       label: _("Graph _Summary View");
@@ -233,7 +221,7 @@ menu context_menu_model {
       }
 
       item {
-        label: _("_Disk");
+        label: _("_Drive");
         action: "graph.disk";
       }
 
@@ -245,6 +233,11 @@ menu context_menu_model {
       item {
         label: _("_GPU");
         action: "graph.gpu";
+      }
+
+      item {
+        label: _("_Fan");
+        action: "graph.fan";
       }
     }
   }

@@ -1,29 +1,37 @@
 [package]
 build = "build/build.rs"
 name = "gatherer"
-version = "0.4.5"
+version = "0.6.1"
 edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0" }
+app-rummage = { version = "0.2.7" }
 arrayvec = { version = "0.7" }
-ash = { version = "0.37" }
+ash = { version = "0.38" }
 bincode = { version = "1.3" }
-dbus = { version = "0.9" }
+convert_case = { version = "0.6.0" }
+dbus = { version = "0.9", features = ["vendored"] }
 dbus-crossroads = { version = "0.5" }
-drm = { version = "0.11.0" }
+glob = { version = "0.3.1" }
+drm = { version = "0.12.0" }
 egl = { version = "0.2" }
-gbm = { version = "0.14.0", default-features = false, features = ["drm-support"] }
+gbm = { version = "0.15.0", default-features = false, features = ["drm-support"] }
 lazy_static = { version = "1.4" }
 libc = { version = "0.2" }
-nix = { version = "0.28", features = ["user", "fs", "process"] }
+libloading = { version = "0.8" }
+log = { version = "0.4" }
+nix = { version = "0.29.0", features = ["user", "fs", "process"] }
+rayon = { version = "1.10" }
 rust-ini = { version = "0.21" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
+static_assertions = { version = "1.1" }
+thiserror = { version = "1.0" }
 
 [build-dependencies]
 cargo-util = { version = "0.2" }
-cc = { version = "1.0" }
+cc = { version = "1.1" }
 flate2 = { version = "1.0" }
 lazy_static = { version = "1.4" }
 pkg-config = { version = "0.3" }
@@ -31,7 +39,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 sha2 = { version = "0.10" }
 tar = { version = "0.4" }
-ureq = { version = "2.8" }
+ureq = { version = "2.10" }
 
 [profile.release]
 opt-level = 3

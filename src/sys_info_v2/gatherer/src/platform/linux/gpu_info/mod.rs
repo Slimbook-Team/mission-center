@@ -20,14 +20,19 @@
 
 use std::{
     collections::HashMap,
+    fs,
     sync::{Arc, RwLock},
+    time::Instant,
 };
 
+use super::{INITIAL_REFRESH_TS, MIN_DELTA_REFRESH};
 use crate::{
-    logging::{critical, error, warning},
+    gpu_info_valid,
+    logging::{critical, debug, error, warning},
+    platform::platform_impl::gpu_info::nvtop::GPUInfoDynamicInfoValid,
     platform::{
         platform_impl::run_forked, ApiVersion, GpuDynamicInfoExt, GpuInfoExt, GpuStaticInfoExt,
-        OpenGLApiVersion,
+        OpenGLApiVersion, ProcessesExt,
     },
 };
 
@@ -35,13 +40,14 @@ use crate::{
 mod nvtop;
 mod vulkan_info;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinuxGpuStaticInfo {
     id: Arc<str>,
     device_name: Arc<str>,
     vendor_id: u16,
     device_id: u16,
     total_memory: u64,
+    total_gtt: u64,
     opengl_version: Option<OpenGLApiVersion>,
     vulkan_version: Option<ApiVersion>,
     pcie_gen: u8,
@@ -58,6 +64,7 @@ impl Default for LinuxGpuStaticInfo {
             vendor_id: 0,
             device_id: 0,
             total_memory: 0,
+            total_gtt: 0,
             opengl_version: None,
             vulkan_version: None,
             pcie_gen: 0,
@@ -87,6 +94,10 @@ impl GpuStaticInfoExt for LinuxGpuStaticInfo {
         self.total_memory
     }
 
+    fn total_gtt(&self) -> u64 {
+        self.total_gtt
+    }
+
     fn opengl_version(&self) -> Option<&OpenGLApiVersion> {
         self.opengl_version.as_ref()
     }
@@ -112,7 +123,7 @@ impl GpuStaticInfoExt for LinuxGpuStaticInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinuxGpuDynamicInfo {
     id: Arc<str>,
     temp_celsius: u32,
@@ -126,6 +137,7 @@ pub struct LinuxGpuDynamicInfo {
     mem_speed_max_mhz: u32,
     free_memory: u64,
     used_memory: u64,
+    used_gtt: u64,
     encoder_percent: u32,
     decoder_percent: u32,
 }
@@ -145,6 +157,7 @@ impl Default for LinuxGpuDynamicInfo {
             mem_speed_max_mhz: 0,
             free_memory: 0,
             used_memory: 0,
+            used_gtt: 0,
             encoder_percent: 0,
             decoder_percent: 0,
         }
@@ -206,6 +219,10 @@ impl GpuDynamicInfoExt for LinuxGpuDynamicInfo {
         self.used_memory
     }
 
+    fn used_gtt(&self) -> u64 {
+        self.used_gtt
+    }
+
     fn encoder_percent(&self) -> u32 {
         self.encoder_percent
     }
@@ -221,6 +238,9 @@ pub struct LinuxGpuInfo {
     dynamic_info: HashMap<arrayvec::ArrayString<16>, LinuxGpuDynamicInfo>,
 
     gpu_list_refreshed: bool,
+
+    static_refresh_timestamp: Instant,
+    dynamic_refresh_timestamp: Instant,
 }
 
 impl Drop for LinuxGpuInfo {
@@ -261,6 +281,9 @@ impl LinuxGpuInfo {
             dynamic_info: HashMap::new(),
 
             gpu_list_refreshed: false,
+
+            static_refresh_timestamp: *INITIAL_REFRESH_TS,
+            dynamic_refresh_timestamp: *INITIAL_REFRESH_TS,
         };
 
         this.refresh_gpu_list();
@@ -550,6 +573,12 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
             return;
         }
 
+        let result = unsafe { nvtop::gpuinfo_utilisation_rate(gpu_list) };
+        if result == 0 {
+            critical!("Gatherer::GpuInfo", "Unable to refresh utilization rate");
+            return;
+        }
+
         self.static_info.clear();
         self.dynamic_info.clear();
 
@@ -589,10 +618,7 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
 
             let device_name =
                 unsafe { std::ffi::CStr::from_ptr(dev.static_info.device_name.as_ptr()) };
-            let device_name = match device_name.to_str() {
-                Ok(dn) => dn,
-                Err(_) => "Unknown",
-            };
+            let device_name = device_name.to_str().unwrap_or_else(|_| "Unknown");
 
             let mut uevent_path = ArrayString::<64>::new();
             let _ = write!(uevent_path, "/sys/bus/pci/devices/{}/uevent", pdev);
@@ -625,6 +651,22 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
                 }
             };
 
+            let total_gtt = match fs::read_to_string(format!(
+                "/sys/bus/pci/devices/{}/mem_info_gtt_total",
+                pdev.to_lowercase()
+            )) {
+                Ok(x) => match x.trim().parse::<u64>() {
+                    Ok(x) => x,
+                    Err(x) => {
+                        debug!("Gatherer::GpuInfo", "Failed to parse total gtt: {}", x);
+                        0
+                    }
+                },
+                Err(x) => {
+                    debug!("Gatherer::GpuInfo", "Failed to read total gtt: {}", x);
+                    0
+                }
+            };
             let ven_dev_id = if let Some(mut f) = uevent_file {
                 buffer.clear();
                 match f.read_to_string(&mut buffer) {
@@ -669,6 +711,7 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
                 device_id: ven_dev_id.1,
 
                 total_memory: dev.dynamic_info.total_memory,
+                total_gtt,
 
                 pcie_gen: dev.dynamic_info.pcie_link_gen as _,
                 pcie_lanes: dev.dynamic_info.pcie_link_width as _,
@@ -690,6 +733,12 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
         if !self.gpu_list_refreshed {
             return;
         }
+
+        let now = Instant::now();
+        if self.static_refresh_timestamp.elapsed() < MIN_DELTA_REFRESH {
+            return;
+        }
+        self.static_refresh_timestamp = now;
 
         let vulkan_versions = unsafe {
             run_forked(|| {
@@ -749,6 +798,12 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
             return;
         }
 
+        let now = Instant::now();
+        if self.dynamic_refresh_timestamp.elapsed() < MIN_DELTA_REFRESH {
+            return;
+        }
+        self.dynamic_refresh_timestamp = now;
+
         let mut gpu_list = self.gpu_list.write().unwrap();
         let gpu_list = gpu_list.deref_mut();
 
@@ -761,6 +816,12 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
         let result = unsafe { nvtop::gpuinfo_refresh_processes(gpu_list) };
         if result == 0 {
             error!("Gatherer::GpuInfo", "Unable to refresh GPU processes");
+            return;
+        }
+
+        let result = unsafe { nvtop::gpuinfo_utilisation_rate(gpu_list) };
+        if result == 0 {
+            critical!("Gatherer::GpuInfo", "Unable to refresh utilization rate");
             return;
         }
 
@@ -804,6 +865,23 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
                 }
             };
 
+            let used_gtt = match fs::read_to_string(format!(
+                "/sys/bus/pci/devices/{}/mem_info_gtt_used",
+                pdev.to_lowercase()
+            )) {
+                Ok(x) => match x.trim().parse::<u64>() {
+                    Ok(x) => x,
+                    Err(x) => {
+                        debug!("Gatherer::GpuInfo", "Failed to parse used gtt: {}", x);
+                        0
+                    }
+                },
+                Err(x) => {
+                    debug!("Gatherer::GpuInfo", "Failed to read used gtt: {}", x);
+                    0
+                }
+            };
+
             let dynamic_info = self.dynamic_info.get_mut(&pci_id);
             if dynamic_info.is_none() {
                 continue;
@@ -821,8 +899,21 @@ impl<'a> GpuInfoExt<'a> for LinuxGpuInfo {
             dynamic_info.mem_speed_max_mhz = dev.dynamic_info.mem_clock_speed_max;
             dynamic_info.free_memory = dev.dynamic_info.free_memory;
             dynamic_info.used_memory = dev.dynamic_info.used_memory;
-            dynamic_info.encoder_percent = dev.dynamic_info.encoder_rate;
-            dynamic_info.decoder_percent = dev.dynamic_info.decoder_rate;
+            dynamic_info.used_gtt = used_gtt;
+            dynamic_info.encoder_percent = {
+                if gpu_info_valid!(dev.dynamic_info, GPUInfoDynamicInfoValid::EncoderRateValid) {
+                    dev.dynamic_info.encoder_rate
+                } else {
+                    0
+                }
+            };
+            dynamic_info.decoder_percent = {
+                if gpu_info_valid!(dev.dynamic_info, GPUInfoDynamicInfoValid::DecoderRateValid) {
+                    dev.dynamic_info.decoder_rate
+                } else {
+                    0
+                }
+            };
 
             for i in 0..dev.processes_count as usize {
                 let process = unsafe { &*dev.processes.add(i) };

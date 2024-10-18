@@ -31,6 +31,7 @@ pub enum DiskType {
     SSD,
     NVMe,
     eMMC,
+    SD,
     iSCSI,
     Optical,
 }
@@ -66,8 +67,8 @@ impl Default for DiskInfo {
             formatted: 0,
             system_disk: false,
 
-            busy_percent: 0.0,
-            response_time_ms: 0.0,
+            busy_percent: 0.,
+            response_time_ms: 0.,
             read_speed: 0,
             write_speed: 0,
         }
@@ -107,6 +108,16 @@ impl Arg for DiskInfoVec {
 
     fn signature() -> Signature<'static> {
         Signature::from("a(ssyttbddtt)")
+    }
+}
+
+impl ReadAll for DiskInfoVec {
+    fn read(i: &mut Iter) -> Result<Self, TypeMismatchError> {
+        i.get().ok_or(super::TypeMismatchError::new(
+            ArgType::Invalid,
+            ArgType::Invalid,
+            0,
+        ))
     }
 }
 
@@ -213,8 +224,9 @@ impl<'a> Get<'a> for DiskInfoVec {
                                     2 => DiskType::SSD,
                                     3 => DiskType::NVMe,
                                     4 => DiskType::eMMC,
-                                    5 => DiskType::iSCSI,
-                                    6 => DiskType::Optical,
+                                    5 => DiskType::SD,
+                                    6 => DiskType::iSCSI,
+                                    7 => DiskType::Optical,
                                     _ => DiskType::Unknown,
                                 },
                             },

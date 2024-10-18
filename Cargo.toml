@@ -1,26 +1,28 @@
 [package]
 name = "missioncenter"
-version = "0.4.5"
+version = "0.6.1"
 edition = "2021"
-build = "build/build.rs"
+build = "build.rs"
 
 [dependencies]
-adw = { package = "libadwaita", version = "0.6", features = ["v1_5"] }
+adw = { package = "libadwaita", version = "0.7", features = ["v1_5"] }
 dbus = { version = "0.9" }
 errno-sys = { version = "0.2.0" }
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-gtk = { package = "gtk4", version = "0.8", features = ["gnome_46"] }
+gtk = { package = "gtk4", version = "0.9", features = ["gnome_46"] }
 lazy_static = { version = "1.4" }
 libc = { version = "0.2" }
 libudev-sys = { version = "0.1" }
 regex = { version = "1.10" }
 rust-ini = { version = "0.21" }
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
+static_assertions = { version = "1.1" }
 textdistance = { version = "1.0" }
 
 [profile.release]
 opt-level = 3
 lto = true
 strip = "debuginfo"
+codegen-units = 1

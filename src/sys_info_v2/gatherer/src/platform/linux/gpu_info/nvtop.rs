@@ -18,6 +18,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#[macro_export]
+macro_rules! gpu_info_valid {
+    ($info: expr, $field: expr) => {{
+        let field = $field as usize;
+        ((($info).valid)[field / 8] & (1 << (field % 8))) != 0
+    }};
+}
+
 const MAX_DEVICE_NAME: usize = 128;
 const PDEV_LEN: usize = 16;
 
@@ -44,10 +52,11 @@ pub struct GPUVendor {
 
     pub get_device_handles: Option<extern "C" fn(devices: *mut ListHead, count: *mut u32) -> u8>,
 
-    pub populate_static_info: Option<extern "C" fn(gpu_info: *mut GPUInfo) -> u8>,
-    pub refresh_dynamic_info: Option<extern "C" fn(gpu_info: *mut GPUInfo) -> u8>,
+    pub populate_static_info: Option<extern "C" fn(gpu_info: *mut GPUInfo)>,
+    pub refresh_dynamic_info: Option<extern "C" fn(gpu_info: *mut GPUInfo)>,
+    pub refresh_utilisation_rate: Option<extern "C" fn(gpu_info: *mut GPUInfo)>,
 
-    pub refresh_running_processes: Option<extern "C" fn(gpu_info: *mut GPUInfo) -> u8>,
+    pub refresh_running_processes: Option<extern "C" fn(gpu_info: *mut GPUInfo)>,
 
     pub name: *mut i8,
 }
@@ -60,6 +69,9 @@ pub enum GPUInfoStaticInfoValid {
     MaxPcieLinkWidthValid,
     TemperatureShutdownThresholdValid,
     TemperatureSlowdownThresholdValid,
+    NumberSharedCoresValid,
+    L2CacheSizeValid,
+    NumberExecEnginesValid,
     StaticInfoCount,
 }
 
@@ -73,7 +85,11 @@ pub struct GPUInfoStaticInfo {
     pub max_pcie_link_width: u32,
     pub temperature_shutdown_threshold: u32,
     pub temperature_slowdown_threshold: u32,
+    pub n_shared_cores: u32,
+    pub l2cache_size: u32,
+    pub n_exec_engines: u32,
     pub integrated_graphics: u8,
+    pub encode_decode_shared: u8,
     pub valid: [u8; (GPU_INFO_STATIC_INFO_COUNT + 7) / 8],
 }
 
@@ -99,6 +115,7 @@ pub enum GPUInfoDynamicInfoValid {
     GpuTempValid,
     PowerDrawValid,
     PowerDrawMaxValid,
+    MultiInstanceModeValid,
     DynamicInfoCount,
 }
 
@@ -126,7 +143,7 @@ pub struct GPUInfoDynamicInfo {
     pub gpu_temp: u32,
     pub power_draw: u32,
     pub power_draw_max: u32,
-    pub encode_decode_shared: u8,
+    pub multi_instance_mode: u8,
     pub valid: [u8; (GPU_INFO_DYNAMIC_INFO_COUNT + 7) / 8],
 }
 
@@ -157,6 +174,8 @@ pub enum GPUInfoProcessInfoValid {
     CpuUsageValid,
     CpuMemoryVirtValid,
     CpuMemoryResValid,
+    GpuCyclesValid,
+    SampleDeltaValid,
     ProcessValidInfoCount,
 }
 
@@ -170,10 +189,12 @@ pub struct GPUProcess {
     pub pid: i32,
     pub cmdline: *mut libc::c_char,
     pub user_name: *mut libc::c_char,
+    pub sample_delta: u64, // Time spent between two successive samples
     pub gfx_engine_used: u64,
     pub compute_engine_used: u64,
     pub enc_engine_used: u64,
     pub dec_engine_used: u64,
+    pub gpu_cycles: u64, // Number of GPU cycles spent in the GPU gfx engine
     pub gpu_usage: u32,
     pub encode_usage: u32,
     pub decode_usage: u32,
@@ -214,5 +235,6 @@ extern "C" {
     pub fn gpuinfo_populate_static_infos(devices: *mut ListHead) -> u8;
     pub fn gpuinfo_refresh_dynamic_info(devices: *mut ListHead) -> u8;
     pub fn gpuinfo_refresh_processes(devices: *mut ListHead) -> u8;
+    pub fn gpuinfo_utilisation_rate(devices: *mut ListHead) -> u8;
     pub fn gpuinfo_fix_dynamic_info_from_process_info(devices: *mut ListHead) -> u8;
 }

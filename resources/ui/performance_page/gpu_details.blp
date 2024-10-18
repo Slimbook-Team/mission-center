@@ -19,7 +19,6 @@
  */
 
 using Gtk 4.0;
-using Adw 1;
 
 Box root {
   margin-top: 65;
@@ -58,7 +57,6 @@ Box root {
       spacing: 3;
 
       Label {
-
         styles [
           "caption",
         ]
@@ -136,46 +134,109 @@ Box root {
     }
 
     Box box_mem_usage {
-      orientation: vertical;
-      spacing: 3;
+      orientation: horizontal;
+      spacing: 5;
 
-      Label {
-        styles [
-          "caption",
-        ]
-
-        halign: start;
-        label: _("Memory usage");
+      Picture legend_vram {
+        can-shrink: false;
+        content-fit: scale_down;
       }
 
       Box {
-        Label memory_usage_current {
-          styles [
-            "title-4",
-          ]
-
-          ellipsize: middle;
-
-          halign: start;
-        }
-
+        orientation: vertical;
+        spacing: 3;
         Label {
           styles [
-            "title-4",
+            "caption",
           ]
 
           halign: start;
-          label: " / ";
+          label: _("Memory usage");
         }
 
-        Label memory_usage_max {
+        Box {
+          Label memory_usage_current {
+            styles [
+              "title-4",
+            ]
+
+            ellipsize: middle;
+
+            halign: start;
+          }
+
+          Label {
+            styles [
+              "title-4",
+            ]
+
+            halign: start;
+            label: " / ";
+          }
+
+          Label memory_usage_max {
+            styles [
+              "title-4",
+            ]
+
+            ellipsize: middle;
+
+            halign: start;
+          }
+        }
+      }
+    }
+
+    Box box_gtt_usage {
+      orientation: horizontal;
+      spacing: 5;
+
+      Picture legend_gtt {
+        can-shrink: false;
+        content-fit: scale_down;
+      }
+
+      Box {
+        orientation: vertical;
+        spacing: 3;
+        Label {
           styles [
-            "title-4",
+            "caption",
           ]
 
-          ellipsize: middle;
-
           halign: start;
+          label: _("GTT usage");
+        }
+
+        Box {
+          Label gtt_usage_current {
+            styles [
+              "title-4",
+            ]
+
+            ellipsize: middle;
+
+            halign: start;
+          }
+
+          Label gtt_separator {
+            styles [
+              "title-4",
+            ]
+
+            halign: start;
+            label: " / ";
+          }
+
+          Label gtt_usage_max {
+            styles [
+              "title-4",
+            ]
+
+            ellipsize: middle;
+
+            halign: start;
+          }
         }
       }
     }
@@ -225,6 +286,75 @@ Box root {
       }
     }
 
+    Box {
+      orientation: horizontal;
+      spacing: 20;
+
+      Box {
+        spacing: 5;
+
+        Picture legend_encode {
+          can-shrink: false;
+          content-fit: scale_down;
+        }
+        Box {
+          orientation: vertical;
+          spacing: 3;
+
+          Label encode_label {
+            styles [
+              "caption",
+            ]
+
+            halign: start;
+            label: _("Video encode");
+          }
+
+          Label encode_percent {
+            styles [
+              "title-4",
+            ]
+
+            ellipsize: middle;
+
+            halign: start;
+          }
+        }
+      }
+      Box box_decode {
+        spacing: 5;
+
+        Picture legend_decode {
+          can-shrink: false;
+          content-fit: scale_down;
+        }
+        Box {
+          orientation: vertical;
+          spacing: 3;
+          halign: end;
+
+
+          Label {
+            styles [
+              "caption",
+            ]
+
+            halign: start;
+            label: _("Video decode");
+          }
+          Label decode_percent {
+            styles [
+              "title-4",
+            ]
+
+            ellipsize: middle;
+
+            halign: start;
+          }
+        }
+      }
+    }
+
     Box box_temp {
       orientation: vertical;
       spacing: 3;
@@ -262,6 +392,8 @@ Box root {
       halign: start;
       label: _("OpenGL version:");
 
+      ellipsize: middle;
+
       layout {
         column: '0';
         row: '0';
@@ -276,19 +408,23 @@ Box root {
       halign: start;
       label: _("Vulkan version:");
 
+      ellipsize: middle;
+
       layout {
         column: '0';
         row: '1';
       }
     }
 
-    Label {
+    Label pcie_speed_label {
       styles [
         "caption",
       ]
 
       halign: start;
       label: _("PCI Express speed:");
+
+      ellipsize: middle;
 
       layout {
         column: '0';
@@ -303,6 +439,8 @@ Box root {
 
       halign: start;
       label: _("PCI bus address:");
+
+      ellipsize: middle;
 
       layout {
         column: '0';
@@ -363,3 +501,4 @@ Box root {
     }
   }
 }
+

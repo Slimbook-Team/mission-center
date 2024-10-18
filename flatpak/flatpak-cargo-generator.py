@@ -410,15 +410,7 @@ async def generate_sources(
 
     sources.extend(package_sources)
 
-    logging.debug('Vendored sources:\n%s', json.dumps(cargo_vendored_sources, indent=4))
-    sources.append({
-        'type': 'inline',
-        'contents': toml.dumps({
-            'source': cargo_vendored_sources,
-        }),
-        'dest': CARGO_HOME,
-        'dest-filename': 'config'
-    })
+    logging.debug('Vendored sources:\n%s', json.dumps(cargo_vendored_sources, indent=2))
     return sources
 
 
@@ -442,7 +434,7 @@ def main():
     generated_sources = asyncio.run(generate_sources(load_toml(args.cargo_lock),
                                     git_tarballs=args.git_tarballs))
     with open(outfile, 'w') as out:
-        json.dump(generated_sources, out, indent=4, sort_keys=False)
+        json.dump(generated_sources, out, indent=2, sort_keys=False)
 
 
 if __name__ == '__main__':

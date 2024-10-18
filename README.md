@@ -31,18 +31,23 @@ Please note there is ongoing work to overcome all of these.
 
 * No per-process network usage ([#3](https://gitlab.com/mission-center-devs/mission-center/-/issues/3))
 * GPU support is experimental
-* Intel GPU monitoring is only supported for Broadwell and later GPUs; and does not support VRAM, power, or temperature monitoring.
-* When using Linux Mint/Cinnamon, launched applications may not show up in the "Applications" section. (Upstream issue: https://github.com/linuxmint/cinnamon/issues/12015)
+* Intel GPU monitoring is only supported for Broadwell and later GPUs; and does not support VRAM, power, or temperature
+  monitoring.
+* When using Linux Mint/Cinnamon, launched applications may not show up in the "Applications" section. (Upstream
+  issue: https://github.com/linuxmint/cinnamon/issues/12015)
 
-Please also note that as Mission Center is a libadwaita application, it will not follow system-defined stylesheets (themes). If you wish to change the look of any libadwaita application, including Mission Center, it is recommended to use [Gradience](https://gradienceteam.github.io/).
+Please also note that as Mission Center is a libadwaita application, it will not follow system-defined stylesheets (
+themes).
 
 ## Installing
 
-<br/>
-<p align="center">
-  <a href="https://flathub.org/apps/io.missioncenter.MissionCenter"><img src="https://dl.flathub.org/assets/badges/flathub-badge-en.svg" width=200/></a>
-</p>
-<br/>
+<a href="https://flathub.org/apps/io.missioncenter.MissionCenter"><img src="https://dl.flathub.org/assets/badges/flathub-badge-en.svg" width=200/></a>
+<a href="https://gitlab.com/mission-center-devs/mission-center/-/jobs/7109267599/artifacts/raw/MissionCenter-x86_64.AppImage"><img src="https://raw.githubusercontent.com/AppImage/docs.appimage.org/master/source/_static/img/download-appimage-banner.svg" width=200/></a>
+
+Also available from https://portable-linux-apps.github.io/apps/mission-center.html
+
+Might also be available in your distribution's repository:  
+[![](https://repology.org/badge/vertical-allrepos/mission-center.svg)](https://repology.org/project/mission-center/versions)
 
 Source code is available at [GitLab](https://gitlab.com/mission-center-devs/mission-center)
 
@@ -74,11 +79,17 @@ Source code is available at [GitLab](https://gitlab.com/mission-center-devs/miss
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0009-apps.png)
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0010-apps-filter.png)
 
+*Services page*
+![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0018-services.png)
+![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/019-services-filter.png)
+![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0020-service-details.png)
+
 *Dark mode*  
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0011-cpu-dark.png)
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0012-disk-dark.png)
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0013-gpu-nvidia-dark.png)
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0014-apps-dark.png)
+![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0021-services-dark.png)
 
 *Summary view*  
 ![](https://gitlab.com/mission-center-devs/mission-center/-/raw/main/screenshots/0015-cpu-summary-view.png)
@@ -101,15 +112,14 @@ Source code is available at [GitLab](https://gitlab.com/mission-center-devs/miss
 * udev development libraires
 * GTK 4
 * libadwaita
-* libDBus development libraries
 
 **Build instructions**
 
 ```bash
-# On Ubuntu 23.10 all dependencies, except for the Rust toolchain, can be installed with:
-sudo apt install build-essential curl git gettext python3-pip libadwaita-1-dev python3-gi libudev-dev libdrm-dev libgbm-dev libdbus-1-dev desktop-file-utils meson
+# On Ubuntu 24.04 all dependencies, except for the Rust toolchain, can be installed with:
+sudo apt install build-essential curl git gettext python3-pip libadwaita-1-dev python3-gi libudev-dev libdrm-dev libgbm-dev desktop-file-utils meson libdbus-1-dev pkg-config
 
-BUILD_ROOT="$(pwd)/_build"
+BUILD_ROOT="$(pwd)/build-meson-debug"
 
 meson setup "$BUILD_ROOT" -Dbuildtype=debug # Alternatively pass `-Dbuildtype=release` for a release build
 ninja -C "$BUILD_ROOT"
@@ -129,7 +139,7 @@ glib-compile-schemas --strict "$(pwd)/data" && mv "$(pwd)/data/gschemas.compiled
 And then to run the app:
 
 ```bash
-_build/src/missioncenter
+"$BUILD_ROOT/src/missioncenter"
 ```
 
 If you want to install the app just run:
@@ -147,8 +157,8 @@ missioncenter
 ### Building - AppImage
 
 ```bash
-# On Ubuntu 23.10 all dependencies, except for the Rust toolchain, can be installed with:
-sudo apt install build-essential curl git gettext python3-pip libadwaita-1-dev python3-gi libudev-dev libdrm-dev libgbm-dev libdbus-1-dev desktop-file-utils meson
+# On Ubuntu 24.04 all dependencies, except for the Rust toolchain, can be installed with:
+sudo apt install build-essential curl git gettext python3-pip libadwaita-1-dev python3-gi libudev-dev libdrm-dev libgbm-dev desktop-file-utils meson
 
 meson setup _build -Dbuildtype=debug # Alternatively pass `-Dbuildtype=release` for a release build
 ninja -C _build
@@ -185,10 +195,10 @@ Install the required Flatpak runtimes and SDKs:
 
 ```bash
 flatpak install -y \
-    org.freedesktop.Platform//23.08 \
-    org.freedesktop.Sdk//23.08 \
-    org.gnome.Platform//45 \
-    org.gnome.Sdk//45
+    org.freedesktop.Platform//24.08 \
+    org.freedesktop.Sdk//24.08 \
+    org.gnome.Platform//47 \
+    org.gnome.Sdk//47
 ```
 
 Finally build a Flatpak package:
@@ -220,7 +230,8 @@ Report issues to GitLab [issue tracking system](https://gitlab.com/mission-cente
 
 ### Discord
 
-Join [the Discord server](https://discord.gg/RG7QTeB9yk) and let's talk about what you think is missing or can be improved.
+Join [the Discord server](https://discord.gg/RG7QTeB9yk) and let's talk about what you think is missing or can be
+improved.
 
 ### Translations
 
@@ -235,4 +246,5 @@ Comments, suggestions, bug reports and contributions are welcome.
 
 ## License
 
-This program is released under the terms of the GNU General Public License (GNU GPL) version 3. You can find a copy of the license in the file COPYING.
+This program is released under the terms of the GNU General Public License (GNU GPL) version 3. You can find a copy of
+the license in the file COPYING.

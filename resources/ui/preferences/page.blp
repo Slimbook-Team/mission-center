@@ -1,9 +1,9 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $PreferencesPage : Adw.PreferencesPage {
+template $PreferencesPage: Adw.PreferencesPage {
   Adw.PreferencesGroup {
-    title: _("General Settings");
+    title: _("General");
 
     Adw.ActionRow {
       title: _("Update Interval");
@@ -16,6 +16,7 @@ template $PreferencesPage : Adw.PreferencesPage {
           step-increment: 0.05;
           value: 1;
         };
+
         hexpand: false;
         value: 1;
         digits: 2;
@@ -24,6 +25,7 @@ template $PreferencesPage : Adw.PreferencesPage {
 
     Adw.ActionRow {
       title: _("Chart Data Points");
+
       Gtk.Scale data_points {
         adjustment: Gtk.Adjustment {
           lower: 10;
@@ -31,6 +33,7 @@ template $PreferencesPage : Adw.PreferencesPage {
           step-increment: 1;
           value: 60;
         };
+
         digits: 0;
         hexpand: true;
         draw-value: true;
@@ -40,7 +43,62 @@ template $PreferencesPage : Adw.PreferencesPage {
   }
 
   Adw.PreferencesGroup {
-    title: _("App Page Settings");
+    title: _("Performance Page");
+
+    Adw.SwitchRow smooth_graphs {
+      title: _("Smooth Graphs");
+      subtitle: _("Draw graphs as smooth line instead of jagged line");
+    }
+
+    Adw.SwitchRow network_bytes {
+      title: _("Show Network Speed In Bytes");
+      subtitle: _("Whether or not to use bits (default) or Bytes for network speed");
+    }
+
+    Adw.SwitchRow network_dynamic_scaling {
+      title: _("Scale Network Graphs Dynamically");
+      subtitle: _("Set network graph to scale dynamically with actual usage or with channel max speed");
+    }
+
+    Adw.SwitchRow show_cpu {
+      title: _("Show CPU Information");
+      subtitle: _("Show CPU information by default");
+      visible: false;
+    }
+
+    Adw.SwitchRow show_memory {
+      title: _("Show Memory Information");
+      subtitle: _("Show memory information by default");
+      visible: false;
+    }
+
+    Adw.SwitchRow show_disks {
+      title: _("Show Disk Information");
+      subtitle: _("Show disk information by default");
+      visible: false;
+    }
+
+    Adw.SwitchRow show_network {
+      title: _("Show Network Information");
+      subtitle: _("Show network information by default");
+      visible: false;
+    }
+
+    Adw.SwitchRow show_gpus {
+      title: _("Show GPU Information");
+      subtitle: _("Show GPU information by default");
+      visible: false;
+    }
+
+    Adw.SwitchRow show_fans {
+      title: _("Show Fan Information");
+      subtitle: _("Show fan information by default");
+      visible: false;
+    }
+  }
+
+  Adw.PreferencesGroup {
+    title: _("App Page");
 
     Adw.SwitchRow merged_process_stats {
       title: _("Merge Process Stats");

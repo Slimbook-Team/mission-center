@@ -1,0 +1,1343 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Tue, 5 Apr 2022 16:00:46 +0200
+Subject: style-manager: Support Yaru accent colors
+
+Generate the libadwaita color schemes using Yaru accent colors.
+Then, when the Yaru theme is used in the system, use the generated
+variant instead of the default one.
+Also the yaru colors palette is used in such case.
+
+No theme changes are applied, only the accent color is now matching
+the yaru ones.
+
+Forwarded: not-needed
+---
+ meson_options.txt                                |   4 +
+ src/adw-settings-impl-gsettings.c                |   8 +
+ src/adw-settings-impl-portal.c                   |  25 ++
+ src/adw-settings-impl-private.h                  |  12 +
+ src/adw-settings-private.h                       |   2 +
+ src/adw-settings.c                               | 336 +++++++++++++++++++++++
+ src/adw-style-manager.c                          |  75 ++++-
+ src/stylesheet/_colors.scss                      |   6 +
+ src/stylesheet/_palette-yaru.scss                | 166 +++++++++++
+ src/stylesheet/adwaita-stylesheet.gresources.xml |   1 +
+ src/stylesheet/meson.build                       |  87 +++++-
+ src/stylesheet/sass-utils.scss                   | 212 ++++++++++++++
+ src/stylesheet/yaru_accent_colors.scss           | 113 ++++++++
+ 13 files changed, 1037 insertions(+), 10 deletions(-)
+ create mode 100644 src/stylesheet/_palette-yaru.scss
+ create mode 100644 src/stylesheet/sass-utils.scss
+ create mode 100644 src/stylesheet/yaru_accent_colors.scss
+
+diff --git a/meson_options.txt b/meson_options.txt
+index b95d0ae..2ef9779 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -20,3 +20,7 @@ option('tests',
+ option('examples',
+        type: 'boolean', value: true,
+        description: 'Build and install the examples and demo applications (currently not built for MSVC builds)')
++
++option('yaru-accent-colors',
++       type: 'boolean', value: true,
++       description: 'Mimic Yaru accent colors')
+diff --git a/src/adw-settings-impl-gsettings.c b/src/adw-settings-impl-gsettings.c
+index 5a3cfe9..917f7d2 100644
+--- a/src/adw-settings-impl-gsettings.c
++++ b/src/adw-settings-impl-gsettings.c
+@@ -160,3 +160,11 @@ adw_settings_impl_gsettings_new (gboolean enable_color_scheme,
+ 
+   return ADW_SETTINGS_IMPL (self);
+ }
++
++GSettings *
++adw_settings_impl_gsettings_get_interface_settings (AdwSettingsImpl *self)
++{
++  g_return_val_if_fail (ADW_IS_SETTINGS_IMPL_GSETTINGS (self), NULL);
++
++  return ADW_SETTINGS_IMPL_GSETTINGS (self)->interface_settings;
++}
+diff --git a/src/adw-settings-impl-portal.c b/src/adw-settings-impl-portal.c
+index 00725b0..9858a84 100644
+--- a/src/adw-settings-impl-portal.c
++++ b/src/adw-settings-impl-portal.c
+@@ -299,3 +299,28 @@ adw_settings_impl_portal_new (gboolean enable_color_scheme,
+ 
+   return ADW_SETTINGS_IMPL (self);
+ }
++
++gboolean adw_settings_impl_portal_enabled (AdwSettingsImpl *self) {
++  return ADW_IS_SETTINGS_IMPL_PORTAL (self) &&
++    ADW_SETTINGS_IMPL_PORTAL (self)->settings_portal != NULL;
++}
++
++GDBusProxy *
++adw_settings_impl_portal_get_proxy (AdwSettingsImpl *self)
++{
++  g_return_val_if_fail (ADW_IS_SETTINGS_IMPL_PORTAL (self), NULL);
++
++  return ADW_SETTINGS_IMPL_PORTAL (self)->settings_portal;
++}
++
++gboolean
++adw_settings_impl_portal_read_setting (AdwSettingsImpl  *self,
++                                       const char       *schema,
++                                       const char       *name,
++                                       const char       *type,
++                                       GVariant        **out)
++{
++  g_return_val_if_fail (ADW_IS_SETTINGS_IMPL_PORTAL (self), FALSE);
++
++  return read_setting (ADW_SETTINGS_IMPL_PORTAL (self), schema, name, type, out);
++}
+diff --git a/src/adw-settings-impl-private.h b/src/adw-settings-impl-private.h
+index 347523d..f4c02cc 100644
+--- a/src/adw-settings-impl-private.h
++++ b/src/adw-settings-impl-private.h
+@@ -48,6 +48,18 @@ void           adw_settings_impl_set_accent_color (AdwSettingsImpl *self,
+ 
+ gboolean adw_get_disable_portal (void);
+ 
++gboolean adw_settings_impl_portal_enabled (AdwSettingsImpl *self);
++
++#include <gio/gio.h>
++GSettings *adw_settings_impl_gsettings_get_interface_settings (AdwSettingsImpl *self);
++GDBusProxy *adw_settings_impl_portal_get_proxy (AdwSettingsImpl *self);
++
++gboolean adw_settings_impl_portal_read_setting (AdwSettingsImpl  *self,
++                                                const char       *schema,
++                                                const char       *name,
++                                                const char       *type,
++                                                GVariant        **out);
++
+ #ifdef __APPLE__
+ #define ADW_TYPE_SETTINGS_IMPL_MACOS (adw_settings_impl_macos_get_type())
+ 
+diff --git a/src/adw-settings-private.h b/src/adw-settings-private.h
+index f4921f4..4f38196 100644
+--- a/src/adw-settings-private.h
++++ b/src/adw-settings-private.h
+@@ -69,4 +69,6 @@ void adw_settings_override_system_supports_accent_colors (AdwSettings *self,
+ void adw_settings_override_accent_color (AdwSettings    *self,
+                                          AdwAccentColor  accent_color);
+ 
++const char *adw_settings_get_yaru_accent (AdwSettings *self);
++
+ G_END_DECLS
+diff --git a/src/adw-settings.c b/src/adw-settings.c
+index a8ead17..774c7fa 100644
+--- a/src/adw-settings.c
++++ b/src/adw-settings.c
+@@ -28,6 +28,10 @@ struct _AdwSettings
+   AdwAccentColor accent_color;
+   gboolean system_supports_accent_colors;
+ 
++  gchar *yaru_accent;
++  gboolean yaru_use_system_accent_color;
++  AdwAccentColor yaru_accent_color;
++
+   gboolean override;
+   gboolean system_supports_color_schemes_override;
+   AdwSystemColorScheme color_scheme_override;
+@@ -45,6 +49,7 @@ enum {
+   PROP_HIGH_CONTRAST,
+   PROP_SYSTEM_SUPPORTS_ACCENT_COLORS,
+   PROP_ACCENT_COLOR,
++  PROP_YARU_ACCENT,
+   LAST_PROP,
+ };
+ 
+@@ -52,6 +57,16 @@ static GParamSpec *props[LAST_PROP];
+ 
+ static AdwSettings *default_instance;
+ 
++typedef enum {
++  ADW_YARU_ACCENT_SOURCE_NONE,
++  ADW_YARU_ACCENT_SOURCE_PORTAL,
++  ADW_YARU_ACCENT_SOURCE_GTK,
++  ADW_YARU_ACCENT_SOURCE_GSETTINGS,
++} AdwYaruAccentSource;
++
++static AdwYaruAccentSource
++update_yaru_accent (AdwSettings *self);
++
+ static void
+ set_color_scheme (AdwSettings          *self,
+                   AdwSystemColorScheme  color_scheme)
+@@ -89,6 +104,9 @@ set_accent_color (AdwSettings    *self,
+ 
+   if (!self->override)
+     g_object_notify_by_pspec (G_OBJECT (self), props[PROP_ACCENT_COLOR]);
++
++  if (self->yaru_use_system_accent_color)
++    update_yaru_accent (self);
+ }
+ 
+ static void
+@@ -189,6 +207,294 @@ register_impl (AdwSettings     *self,
+   }
+ }
+ 
++static gboolean
++yaru_accent_to_accent_color (const char     *yaru_accent,
++                             AdwAccentColor *out_accent_color)
++{
++  GdkRGBA rgba;
++  unsigned rgba_hex = 0;
++
++  if (!yaru_accent)
++    return FALSE;
++
++  if (g_str_equal (yaru_accent, "default"))
++    rgba_hex = 0xe95420;
++  else if (g_str_equal (yaru_accent, "bark"))
++    rgba_hex = 0x787859;
++  else if (g_str_equal (yaru_accent, "sage"))
++    rgba_hex = 0x657b69;
++  else if (g_str_equal (yaru_accent, "olive"))
++    rgba_hex = 0x4b8501;
++  else if (g_str_equal (yaru_accent, "viridian"))
++    rgba_hex = 0x03875b;
++  else if (g_str_equal (yaru_accent, "prussiangreen"))
++    rgba_hex = 0x308280;
++  else if (g_str_equal (yaru_accent, "blue"))
++    rgba_hex = 0x0073e5;
++  else if (g_str_equal (yaru_accent, "purple"))
++    rgba_hex = 0x7764d8;
++  else if (g_str_equal (yaru_accent, "magenta"))
++    rgba_hex = 0xb34cb3;
++  else if (g_str_equal (yaru_accent, "red"))
++    rgba_hex = 0xda3450;
++  else if (g_str_equal (yaru_accent, "yellow"))
++    rgba_hex = 0xc88800;
++  else if (g_str_equal (yaru_accent, "wartybrown"))
++    rgba_hex = 0xb39169;
++
++  if (G_UNLIKELY (rgba_hex == 0))
++    {
++      g_warning ("No known yaru accent color '%s'", yaru_accent);
++      return FALSE;
++    }
++
++  rgba.red =   (float) ((rgba_hex >> 16) & 0xff) / 0xff;
++  rgba.green = (float) ((rgba_hex >> 8)  & 0xff) / 0xff;
++  rgba.blue =  (float) ((rgba_hex)       & 0xff) / 0xff;
++  rgba.alpha = 1;
++
++  *out_accent_color = adw_accent_color_nearest_from_rgba (&rgba);
++  return TRUE;
++}
++
++static char *
++compute_yaru_accent_from_theme (AdwSettings *self,
++                                const char *theme_name)
++{
++  if (!g_str_has_prefix (theme_name, "Yaru"))
++    return NULL;
++
++  if (g_str_equal (theme_name, "Yaru") ||
++      g_str_equal (theme_name, "Yaru-dark")) {
++    return g_strdup ("default");
++  }
++
++  if (theme_name[4] == '-') {
++    g_auto (GStrv) theme_variant = NULL;
++
++    theme_variant = g_strsplit (theme_name, "-", -1);
++    if (g_strv_length (theme_variant) <= 1)
++      return NULL;
++
++    /* Migrate from old colors, if they're still configured */
++    if (g_str_equal (theme_variant[1], "viridian"))
++      return g_strdup ("olive");
++    else if (g_str_equal (theme_variant[1], "bark"))
++      return g_strdup ("default");
++
++    return g_strdup (theme_variant[1]);
++  }
++
++  return NULL;
++}
++
++static const char *
++compute_yaru_accent_from_system_accent (AdwSettings *self)
++{
++  AdwAccentColor accent_color = self->accent_color;
++
++  if (self->override)
++    accent_color = self->accent_color_override;
++
++  switch (accent_color) {
++    case ADW_ACCENT_COLOR_BLUE:
++      return "blue";
++    case ADW_ACCENT_COLOR_TEAL:
++      return "prussiangreen";
++    case ADW_ACCENT_COLOR_GREEN:
++      return "olive";
++    case ADW_ACCENT_COLOR_YELLOW:
++      return "yellow";
++    case ADW_ACCENT_COLOR_ORANGE:
++      return "default";
++    case ADW_ACCENT_COLOR_RED:
++      return "red";
++    case ADW_ACCENT_COLOR_PINK:
++      return "magenta";
++    case ADW_ACCENT_COLOR_PURPLE:
++      return "purple";
++    case ADW_ACCENT_COLOR_SLATE:
++      return "sage";
++    default:
++      g_return_val_if_reached (NULL);
++  }
++}
++
++static void
++update_yaru_accent_from_theme (AdwSettings *self,
++                               const char *theme_name)
++{
++  g_autofree char *yaru_accent = NULL;
++  AdwAccentColor yaru_accent_color;
++  gboolean valid_accent_color;
++
++  yaru_accent = compute_yaru_accent_from_theme (self, theme_name);
++  valid_accent_color = yaru_accent_to_accent_color (yaru_accent, &yaru_accent_color);
++  if (!valid_accent_color) {
++    yaru_accent_color = ADW_ACCENT_COLOR_ORANGE;
++    g_clear_pointer (&self->yaru_accent, g_free);
++  }
++
++  if (valid_accent_color && self->yaru_use_system_accent_color)
++    g_set_str (&yaru_accent, compute_yaru_accent_from_system_accent (self));
++
++  if (g_set_str (&self->yaru_accent, yaru_accent))
++    g_object_notify_by_pspec (G_OBJECT (self), props[PROP_YARU_ACCENT]);
++
++  if (self->override)
++    return;
++
++  if (!self->yaru_use_system_accent_color &&
++      self->system_supports_accent_colors != valid_accent_color) {
++    self->system_supports_accent_colors = valid_accent_color;
++    g_object_notify_by_pspec (G_OBJECT (self), props[PROP_SYSTEM_SUPPORTS_ACCENT_COLORS]);
++  }
++
++  if (self->yaru_accent_color != yaru_accent_color) {
++    self->yaru_accent_color = yaru_accent_color;
++    g_object_notify_by_pspec (G_OBJECT (self), props[PROP_ACCENT_COLOR]);
++  }
++}
++
++static gboolean
++update_yaru_accent_from_gsettings (AdwSettings *self)
++{
++  g_autofree char *theme_name = NULL;
++  GSettings *interface_settings;
++
++  if (!self->gsettings_impl)
++    return FALSE;
++
++  interface_settings = adw_settings_impl_gsettings_get_interface_settings (self->gsettings_impl);
++  if G_UNLIKELY (!interface_settings)
++    return FALSE;
++
++  theme_name = g_settings_get_string (interface_settings, "gtk-theme");
++  update_yaru_accent_from_theme (self, theme_name);
++
++  return TRUE;
++}
++
++static gboolean
++update_yaru_accent_from_gtk (AdwSettings *self)
++{
++  GdkDisplay *display = gdk_display_get_default ();
++  g_auto(GValue) value = G_VALUE_INIT;
++
++  if (!display)
++    return FALSE;
++
++  g_value_init (&value, G_TYPE_STRING);
++  if (!gdk_display_get_setting (display, "gtk-theme-name", &value))
++    return FALSE;
++
++  update_yaru_accent_from_theme (self, g_value_get_string (&value));
++
++  return TRUE;
++}
++
++static gboolean
++update_yaru_accent_from_portal (AdwSettings *self)
++{
++  g_autoptr (GVariant) variant = NULL;
++
++  if (!adw_settings_impl_portal_enabled (self->platform_impl))
++    return FALSE;
++
++  if (adw_settings_impl_portal_read_setting (self->platform_impl,
++                                             "org.gnome.desktop.interface",
++                                             "gtk-theme", "s", &variant)) {
++    update_yaru_accent_from_theme (self, g_variant_get_string (variant, NULL));
++    return TRUE;
++  }
++
++  return FALSE;
++}
++
++static void
++on_yaru_display_setting_changed (AdwSettings *self,
++                                 const char  *setting,
++                                 GdkDisplay  *display)
++{
++  if (!g_strcmp0 (setting, "gtk-theme-name"))
++    update_yaru_accent_from_gtk (self);
++}
++
++static void
++on_yaru_settings_portal_changed (GDBusProxy  *proxy,
++                                 const char  *sender_name,
++                                 const char  *signal_name,
++                                 GVariant    *parameters,
++                                 AdwSettings *self)
++{
++  g_autoptr(GVariant) value = NULL;
++  const char *namespace;
++  const char *name;
++
++  if (g_strcmp0 (signal_name, "SettingChanged") != 0)
++    return;
++
++  g_variant_get (parameters, "(&s&sv)", &namespace, &name, &value);
++
++  if (g_strcmp0 (namespace, "org.gnome.desktop.interface") == 0 &&
++      g_strcmp0 (name, "gtk-theme") == 0) {
++    update_yaru_accent_from_theme (self, g_variant_get_string (value, NULL));
++  }
++}
++
++static AdwYaruAccentSource
++update_yaru_accent (AdwSettings *self)
++{
++  if (update_yaru_accent_from_portal (self))
++    return ADW_YARU_ACCENT_SOURCE_PORTAL;
++
++  if (update_yaru_accent_from_gtk (self))
++    return ADW_YARU_ACCENT_SOURCE_GTK;
++
++  if (update_yaru_accent_from_gsettings (self))
++    return ADW_YARU_ACCENT_SOURCE_GSETTINGS;
++
++  return ADW_YARU_ACCENT_SOURCE_NONE;
++}
++
++static void
++init_yaru_accents (AdwSettings *self)
++{
++  AdwYaruAccentSource accent_source;
++
++  if (adw_settings_get_system_supports_accent_colors (self))
++    self->yaru_use_system_accent_color = TRUE;
++
++  accent_source = update_yaru_accent (self);
++
++  switch (accent_source) {
++    case ADW_YARU_ACCENT_SOURCE_PORTAL:
++      g_signal_connect (adw_settings_impl_portal_get_proxy (self->platform_impl),
++                        "g-signal",
++                        G_CALLBACK (on_yaru_settings_portal_changed), self);
++      break;
++
++    case ADW_YARU_ACCENT_SOURCE_GTK:
++      g_signal_connect_object (gdk_display_get_default (),
++                               "setting-changed",
++                               G_CALLBACK (on_yaru_display_setting_changed),
++                               self, G_CONNECT_SWAPPED);
++      break;
++
++    case ADW_YARU_ACCENT_SOURCE_GSETTINGS:
++      g_signal_connect_object (adw_settings_impl_gsettings_get_interface_settings (self->gsettings_impl),
++                               "changed::gtk-theme",
++                               G_CALLBACK (update_yaru_accent_from_gsettings),
++                               self, G_CONNECT_SWAPPED);
++      break;
++
++    case ADW_YARU_ACCENT_SOURCE_NONE:
++    default:
++      g_debug ("No source found for Yaru accent color");
++      break;
++  }
++}
++
+ static void
+ adw_settings_constructed (GObject *object)
+ {
+@@ -240,6 +546,8 @@ adw_settings_constructed (GObject *object)
+ 
+   self->system_supports_color_schemes = found_color_scheme;
+   self->system_supports_accent_colors = found_accent_colors;
++
++  init_yaru_accents (self);
+ }
+ 
+ static void
+@@ -251,6 +559,8 @@ adw_settings_dispose (GObject *object)
+   g_clear_object (&self->gsettings_impl);
+   g_clear_object (&self->legacy_impl);
+ 
++  g_clear_pointer (&self->yaru_accent, g_free);
++
+   G_OBJECT_CLASS (adw_settings_parent_class)->dispose (object);
+ }
+ 
+@@ -283,6 +593,10 @@ adw_settings_get_property (GObject    *object,
+     g_value_set_enum (value, adw_settings_get_accent_color (self));
+     break;
+ 
++  case PROP_YARU_ACCENT:
++    g_value_set_string (value, adw_settings_get_yaru_accent (self));
++    break;
++
+   default:
+     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+   }
+@@ -324,6 +638,13 @@ adw_settings_class_init (AdwSettingsClass *klass)
+                        ADW_ACCENT_COLOR_ORANGE,
+                        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+ 
++  props[PROP_YARU_ACCENT] =
++    g_param_spec_string ("yaru-accent",
++                         "Yaru Accent",
++                         "Yaru Accent",
++                         NULL,
++                         G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
++
+   g_object_class_install_properties (object_class, LAST_PROP, props);
+ }
+ 
+@@ -393,6 +714,9 @@ adw_settings_get_accent_color (AdwSettings *self)
+   if (self->override)
+     return self->accent_color_override;
+ 
++  if (self->yaru_accent && !self->yaru_use_system_accent_color)
++    return self->yaru_accent_color;
++
+   return self->accent_color;
+ }
+ 
+@@ -411,6 +735,9 @@ adw_settings_start_override (AdwSettings *self)
+   self->high_contrast_override = self->high_contrast;
+   self->system_supports_accent_colors_override = self->system_supports_accent_colors;
+   self->accent_color_override = self->accent_color;
++
++  if (self->yaru_accent && !self->yaru_use_system_accent_color)
++    self->accent_color_override = self->yaru_accent_color;
+ }
+ 
+ void
+@@ -447,6 +774,8 @@ adw_settings_end_override (AdwSettings *self)
+     g_object_notify_by_pspec (G_OBJECT (self), props[PROP_SYSTEM_SUPPORTS_ACCENT_COLORS]);
+   if (notify_accent_color)
+     g_object_notify_by_pspec (G_OBJECT (self), props[PROP_ACCENT_COLOR]);
++
++  update_yaru_accent (self);
+ }
+ 
+ void
+@@ -534,6 +863,13 @@ adw_settings_override_accent_color (AdwSettings    *self,
+     return;
+ 
+   self->accent_color_override = accent_color;
++  update_yaru_accent (self);
+ 
+   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_ACCENT_COLOR]);
+ }
++
++const char *
++adw_settings_get_yaru_accent (AdwSettings *self)
++{
++  return self->yaru_accent;
++}
+diff --git a/src/adw-style-manager.c b/src/adw-style-manager.c
+index 1206636..458a9d2 100644
+--- a/src/adw-style-manager.c
++++ b/src/adw-style-manager.c
+@@ -77,6 +77,7 @@ enum {
+   PROP_SYSTEM_SUPPORTS_ACCENT_COLORS,
+   PROP_ACCENT_COLOR,
+   PROP_ACCENT_COLOR_RGBA,
++  PROP_YARU_ACCENT,
+   LAST_PROP,
+ };
+ 
+@@ -191,18 +192,50 @@ update_stylesheet (AdwStyleManager       *self,
+     if (adw_settings_get_high_contrast (self->settings))
+       gtk_css_provider_load_from_resource (self->provider,
+                                            "/org/gnome/Adwaita/styles/base-hc.css");
++    else if (adw_settings_get_yaru_accent (self->settings))
++      gtk_css_provider_load_from_resource (self->provider,
++                                           "/org/gnome/Adwaita/styles/base-yaru.css");
+     else
+       gtk_css_provider_load_from_resource (self->provider,
+                                            "/org/gnome/Adwaita/styles/base.css");
+   }
+ 
+-  if (flags & UPDATE_COLOR_SCHEME && self->colors_provider) {
++  if (flags & (UPDATE_COLOR_SCHEME|UPDATE_ACCENT_COLOR) &&
++      self->colors_provider) {
++    g_autofree char *style = NULL;
++    g_autofree char *variant = NULL;
++
+     if (self->dark)
+-      gtk_css_provider_load_from_resource (self->colors_provider,
+-                                           "/org/gnome/Adwaita/styles/defaults-dark.css");
++      variant = g_strdup ("defaults-dark");
+     else
+-      gtk_css_provider_load_from_resource (self->colors_provider,
+-                                           "/org/gnome/Adwaita/styles/defaults-light.css");
++      variant = g_strdup ("defaults-light");
++
++    if (!adw_settings_get_high_contrast (self->settings)) {
++      const char *yaru_accent = adw_settings_get_yaru_accent (self->settings);
++
++      if (yaru_accent) {
++        g_autoptr (GFile) gresource = NULL;
++        g_autofree char *base_variant = g_steal_pointer (&variant);
++        g_autofree char *yaru_variant = NULL;
++        g_autofree char *resource_uri = NULL;
++
++        yaru_variant = g_strdup_printf ("%s-yaru-%s", base_variant, yaru_accent);
++        resource_uri = g_strdup_printf ("resource:///org/gnome/Adwaita/styles/%s.css", yaru_variant);
++        gresource = g_file_new_for_uri (resource_uri);
++
++        if (g_file_query_exists (gresource, NULL)) {
++          variant = g_steal_pointer (&yaru_variant);
++          flags &= ~UPDATE_ACCENT_COLOR;
++        } else {
++          variant = g_steal_pointer (&base_variant);
++          g_warning ("No known Yaru accent '%s'", yaru_accent);
++        }
++      }
++    }
++
++    style = g_strdup_printf ("/org/gnome/Adwaita/styles/%s.css", variant);
++    g_debug ("Using style %s", style);
++    gtk_css_provider_load_from_resource (self->colors_provider, style);
+   }
+ 
+   if (flags & UPDATE_ACCENT_COLOR && self->accent_provider) {
+@@ -284,6 +317,14 @@ notify_high_contrast_cb (AdwStyleManager *self)
+   g_object_notify_by_pspec (G_OBJECT (self), props[PROP_HIGH_CONTRAST]);
+ }
+ 
++static void
++yaru_accent_changed_cb (AdwStyleManager *self)
++{
++  update_stylesheet (self, UPDATE_ACCENT_COLOR);
++
++  g_object_notify_by_pspec (G_OBJECT (self), props[PROP_YARU_ACCENT]);
++}
++
+ static void
+ adw_style_manager_constructed (GObject *object)
+ {
+@@ -361,6 +402,11 @@ adw_style_manager_constructed (GObject *object)
+                            G_CALLBACK (notify_high_contrast_cb),
+                            self,
+                            G_CONNECT_SWAPPED);
++  g_signal_connect_object (self->settings,
++                           "notify::yaru-accent",
++                           G_CALLBACK (yaru_accent_changed_cb),
++                           self,
++                           G_CONNECT_SWAPPED);
+ 
+   update_dark (self);
+   update_stylesheet (self, UPDATE_ALL);
+@@ -421,6 +467,10 @@ adw_style_manager_get_property (GObject    *object,
+     g_value_take_boxed (value, adw_style_manager_get_accent_color_rgba (self));
+     break;
+ 
++  case PROP_YARU_ACCENT:
++    g_value_set_string (value, adw_settings_get_yaru_accent (self->settings));
++    break;
++
+   default:
+     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+   }
+@@ -603,6 +653,21 @@ adw_style_manager_class_init (AdwStyleManagerClass *klass)
+                         GDK_TYPE_RGBA,
+                         G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+ 
++  /**
++   * AdwStyleManager:yaru-accent:
++   *
++   * The Yaru accent color used by the application, if any.
++   * This is only available in ubuntu.
++   *
++   * This cannot be overridden by applications.
++   */
++  props[PROP_YARU_ACCENT] =
++    g_param_spec_string ("yaru-accent",
++                         "Yaru Accent",
++                         "Yaru Accent",
++                         NULL,
++                         G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
++
+   g_object_class_install_properties (object_class, LAST_PROP, props);
+ }
+ 
+diff --git a/src/stylesheet/_colors.scss b/src/stylesheet/_colors.scss
+index b1524a0..4c47949 100644
+--- a/src/stylesheet/_colors.scss
++++ b/src/stylesheet/_colors.scss
+@@ -137,3 +137,9 @@ $standalone-color-oklab-dark: Max(l, 0.85) a b;
+   --dim-opacity: #{$dim_label_opacity};
+   --disabled-opacity: #{$disabled_opacity};
+ }
++
++$is_yaru: false !default;
++@if $is_yaru {
++  $link_color: var(--yaru-link-color);
++  $link_visited_color: var(--yaru-link-visited-color);
++}
+diff --git a/src/stylesheet/_palette-yaru.scss b/src/stylesheet/_palette-yaru.scss
+new file mode 100644
+index 0000000..4fa10f1
+--- /dev/null
++++ b/src/stylesheet/_palette-yaru.scss
+@@ -0,0 +1,166 @@
++// Keep this in sync with
++//   https://github.com/ubuntu/yaru/blob/master/gtk/src/default/gtk-4.0/_palette.scss
++
++$blue_1: #75d3f4;
++$blue_2: #47c4f1;
++$blue_3: #19b6ee; // Yaru blue
++$blue_4: #007aa6; // Yaru linkblue
++$blue_5: #335280; // Yaru darkblue
++$green_1: #5aed70;
++$green_2: #47d35c;
++$green_3: #34b948;
++$green_4: #219e34;
++$green_5: #0e8420; // Yaru green
++$yellow_1: #fccd87;
++$yellow_2: #fbc16a;
++$yellow_3: #fbb44c;
++$yellow_4: #faa82f;
++$yellow_5: #f99b11; // Yaru yellow
++$orange_1: #f29879;
++$orange_2: #f08763;
++$orange_3: #ed764d;
++$orange_4: #eb6536;
++$orange_5: #e95420; // Yaru orange
++$red_1: #ea485c;
++$red_2: #de374c;
++$red_3: #d3273b;
++$red_4: #c7162b; // Yaru red
++$red_5: #a91224;
++$purple_1: #924d8b; // Yaru aubergine
++$purple_2: #762572; // Yaru purple
++$purple_3: #77216f; // Yaru light aubergine
++$purple_4: #5e2750; // Yaru mid aubergine
++$purple_5: #2c001e; // Yaru dark aubergine
++$brown_1: #e1b289;
++$brown_2: #c5976e;
++$brown_3: #aa7b53;
++$brown_4: #8e6038;
++$brown_5: #72441d;
++$light_1: #ffffff;
++$light_2: #f7f7f7; // Yaru porcelain
++$light_3: #ccc; // Yaru silk
++$light_4: #aea79f; // Yaru warm gray
++$light_5: #878787; // Yaru ash
++$dark_1: #666666; // Yaru graphite
++$dark_2: #5d5d5d; // Yaru slate
++$dark_3: #3d3d3d; // Yaru inkstone
++$dark_4: #181818; // Yaru jet
++$dark_5: #000000;
++
++$blue: $blue_3;
++$linkblue: $blue_4;
++$darkblue: $blue_5;
++$green: $green_5;
++$yellow: $yellow_5;
++$orange: $orange_5;
++$red: $red_4;
++$aubergine: $purple_1;
++$purple: $purple_2;
++$light_aubergine: $purple_3;
++$mid_aubergine: $purple_4;
++$dark_aubergine: $purple_5;
++$porcelain: $light_2;
++$silk: $light_3;
++$warm_gray: $light_4;
++$ash: $light_5;
++$graphite: $dark_1;
++$slate: $dark_2;
++$inkstone: $dark_3;
++$jet: $dark_4;
++
++:root {
++  --blue-1: #{$blue_1};
++  --blue-2: #{$blue_2};
++  --blue-3: #{$blue_3};
++  --blue-4: #{$blue_4};
++  --blue-5: #{$blue_5};
++  --green-1: #{$green_1};
++  --green-2: #{$green_2};
++  --green-3: #{$green_3};
++  --green-4: #{$green_4};
++  --green-5: #{$green_5};
++  --yellow-1: #{$yellow_1};
++  --yellow-2: #{$yellow_2};
++  --yellow-3: #{$yellow_3};
++  --yellow-4: #{$yellow_4};
++  --yellow-5: #{$yellow_5};
++  --orange-1: #{$orange_1};
++  --orange-2: #{$orange_2};
++  --orange-3: #{$orange_3};
++  --orange-4: #{$orange_4};
++  --orange-5: #{$orange_5};
++  --red-1: #{$red_1};
++  --red-2: #{$red_2};
++  --red-3: #{$red_3};
++  --red-4: #{$red_4};
++  --red-5: #{$red_5};
++  --purple-1: #{$purple_1};
++  --purple-2: #{$purple_2};
++  --purple-3: #{$purple_3};
++  --purple-4: #{$purple_4};
++  --purple-5: #{$purple_5};
++  --brown-1: #{$brown_1};
++  --brown-2: #{$brown_2};
++  --brown-3: #{$brown_3};
++  --brown-4: #{$brown_4};
++  --brown-5: #{$brown_5};
++  --light-1: #{$light_1};
++  --light-2: #{$light_2};
++  --light-3: #{$light_3};
++  --light-4: #{$light_4};
++  --light-5: #{$light_5};
++  --dark-1: #{$dark_1};
++  --dark-2: #{$dark_2};
++  --dark-3: #{$dark_3};
++  --dark-4: #{$dark_4};
++  --dark-5: #{$dark_5};
++}
++
++// Sass thinks we're using the colors in the variables as strings and may shoot
++// warning, it's innocuous and can be defeated by using #{$var}.
++
++@define-color blue_1 #{$blue_1};
++@define-color blue_2 #{$blue_2};
++@define-color blue_3 #{$blue_3};
++@define-color blue_4 #{$blue_4};
++@define-color blue_5 #{$blue_5};
++@define-color green_1 #{$green_1};
++@define-color green_2 #{$green_2};
++@define-color green_3 #{$green_3};
++@define-color green_4 #{$green_4};
++@define-color green_5 #{$green_5};
++@define-color yellow_1 #{$yellow_1};
++@define-color yellow_2 #{$yellow_2};
++@define-color yellow_3 #{$yellow_3};
++@define-color yellow_4 #{$yellow_4};
++@define-color yellow_5 #{$yellow_5};
++@define-color orange_1 #{$orange_1};
++@define-color orange_2 #{$orange_2};
++@define-color orange_3 #{$orange_3};
++@define-color orange_4 #{$orange_4};
++@define-color orange_5 #{$orange_5};
++@define-color red_1 #{$red_1};
++@define-color red_2 #{$red_2};
++@define-color red_3 #{$red_3};
++@define-color red_4 #{$red_4};
++@define-color red_5 #{$red_5};
++@define-color purple_1 #{$purple_1};
++@define-color purple_2 #{$purple_2};
++@define-color purple_3 #{$purple_3};
++@define-color purple_4 #{$purple_4};
++@define-color purple_5 #{$purple_5};
++@define-color brown_1 #{$brown_1};
++@define-color brown_2 #{$brown_2};
++@define-color brown_3 #{$brown_3};
++@define-color brown_4 #{$brown_4};
++@define-color brown_5 #{$brown_5};
++@define-color light_1 #{$light_1};
++@define-color light_2 #{$light_2};
++@define-color light_3 #{$light_3};
++@define-color light_4 #{$light_4};
++@define-color light_5 #{$light_5};
++@define-color dark_1 #{$dark_1};
++@define-color dark_2 #{$dark_2};
++@define-color dark_3 #{$dark_3};
++@define-color dark_4 #{$dark_4};
++@define-color dark_5 #{$dark_5};
+diff --git a/src/stylesheet/adwaita-stylesheet.gresources.xml b/src/stylesheet/adwaita-stylesheet.gresources.xml
+index 98a07ac..0d86a06 100644
+--- a/src/stylesheet/adwaita-stylesheet.gresources.xml
++++ b/src/stylesheet/adwaita-stylesheet.gresources.xml
+@@ -5,6 +5,7 @@
+     <file>base-hc.css</file>
+     <file>defaults-light.css</file>
+     <file>defaults-dark.css</file>
++    @ACCENTS_CSS@
+ 
+     <file>assets/bullet-symbolic.symbolic.png</file>
+     <file>assets/bullet@2-symbolic.symbolic.png</file>
+diff --git a/src/stylesheet/meson.build b/src/stylesheet/meson.build
+index 7335851..41e60f6 100644
+--- a/src/stylesheet/meson.build
++++ b/src/stylesheet/meson.build
+@@ -2,14 +2,65 @@ fs = import('fs')
+ 
+ stylesheet_deps = []
+ 
++yaru_accent_colors_sassc = []
++
++if get_option('yaru-accent-colors')
++  YARU_ACCENTS = [
++      'default',
++      'sage',
++      'olive',
++      'prussiangreen',
++      'blue',
++      'purple',
++      'magenta',
++      'red',
++      'yellow',
++  ]
++
++  yaru_accent_colors_sassc += configure_file(
++    command: [
++      'sh', '-c',
++        ';'.join([
++          'echo "\$is_yaru: true;"',
++          'sed s,palette,palette-yaru,g "$1"',
++        ]), '--', '@INPUT@',
++    ],
++    capture: true,
++    input: 'base.scss',
++    output: 'base-yaru.scss',
++  )
++
++  yaru_accent_colors = 'yaru_accent_colors.scss'
++  foreach accent: YARU_ACCENTS
++    foreach variant: ['light', 'dark']
++      yaru_accent_colors_sassc += configure_file(
++        configuration: {
++          'yaru_dark_variant': variant == 'dark' ? 'true' : 'false',
++          'yaru_accent_color': accent,
++          'yaru_theme_entry_point': (meson.project_source_root() /
++            '@0@'.format(files('defaults-@0@.scss'.format(variant))[0])),
++        },
++        input: yaru_accent_colors,
++        output: 'defaults-@0@-yaru-@1@.scss'.format(variant, accent),
++      )
++    endforeach
++  endforeach
++endif
++
++build_yaru_accent_colors = yaru_accent_colors_sassc.length() > 0
++
+ # For git checkouts, but not for tarballs...
+-if not fs.exists('base.css')
++if not fs.exists('base.css') or build_yaru_accent_colors
+   sassc = find_program('sassc', required: false)
+   if not sassc.found()
+     subproject('sassc', default_options: ['warning_level=0', 'werror=false'])
+     sassc = find_program('sassc')
+   endif
+ 
++  if build_yaru_accent_colors
++    assert(sassc.found(), 'No SSSC found, needed for accent colors!')
++  endif
++
+   if sassc.found()
+     sassc_opts = [ '-a', '-M', '-t', 'compact' ]
+ 
+@@ -74,10 +125,21 @@ if not fs.exists('base.css')
+       'defaults-dark',
+     ]
+ 
++    if build_yaru_accent_colors
++      foreach accent_definition: yaru_accent_colors_sassc
++        scss_deps += accent_definition
++        scss_files += accent_definition
++      endforeach
++
++      scss_deps += yaru_accent_colors
++      sassc_opts += [ '-I', meson.project_build_root() ]
++      sassc_opts += [ '-I', meson.current_source_dir() ]
++    endif
++
+     foreach scss: scss_files
+-      stylesheet_deps += custom_target('@0@.scss'.format(scss),
+-        input: '@0@.scss'.format(scss),
+-        output: '@0@.css'.format(scss),
++      stylesheet_deps += custom_target('@0@.scss'.format(fs.name(scss)),
++        input: '@0@'.format(scss).endswith('.scss') ? scss : '@0@.scss'.format(scss),
++        output: '@0@.css'.format(fs.stem(scss)),
+         command: [
+           sassc, sassc_opts, '@INPUT@', '@OUTPUT@',
+         ],
+@@ -87,9 +149,24 @@ if not fs.exists('base.css')
+   endif
+ endif
+ 
++accents_css = []
++foreach accent_definition: yaru_accent_colors_sassc
++  accents_css += '<file alias="@0@">@1@/@2@</file>'.format(
++    fs.stem(accent_definition) + '.css', meson.project_build_root(),
++    fs.replace_suffix(accent_definition, '.css'))
++endforeach
++
++gresource_file = configure_file(
++  input: 'adwaita-stylesheet.gresources.xml',
++  output: '@BASENAME@',
++  configuration: {
++    'ACCENTS_CSS': accents_css.length() > 0 ? '\n'.join(accents_css) : '',
++  }
++)
++
+ libadwaita_stylesheet_resources = gnome.compile_resources(
+   'adwaita-stylesheet-resources',
+-  'adwaita-stylesheet.gresources.xml',
++  gresource_file,
+ 
+   source_dir: [
+     # List in order of preference
+diff --git a/src/stylesheet/sass-utils.scss b/src/stylesheet/sass-utils.scss
+new file mode 100644
+index 0000000..f7ea2c9
+--- /dev/null
++++ b/src/stylesheet/sass-utils.scss
+@@ -0,0 +1,212 @@
++// Copyright © 2022, Canonical Ltd
++//
++// This program is free software; you can redistribute it and/or
++// modify it under the terms of the GNU Lesser General Public
++// License as published by the Free Software Foundation; either
++// version 2.1 of the License, or (at your option) any later version.
++//
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++// Lesser General Public License for more details.
++//
++// You should have received a copy of the GNU Lesser General Public
++// License along with this library. If not, see <http://www.gnu.org/licenses/>.
++// Authors:
++//       Marco Trevisan <marco.trevisan@canonical.com>
++
++@function str-contains($str, $substring) {
++    @return str-index($str, $substring) != null;
++}
++
++@function str-starts-with($str, $substring) {
++    @return str-index($str, $substring) == 1;
++}
++
++@function str-ends-with($str, $substring) {
++    $index: str-index($str, $substring);
++    @if ($index == null) {
++        @return false;
++    }
++
++    @return ($index + str-length($substring) - 1) == str-length($str);
++}
++
++@function str-basename($str, $divider: '/') {
++    $index: str-index($str, $divider);
++
++    @while $index != null {
++        $str: str-slice($str, $index + 1);
++        $index: str-index($str, $divider);
++    }
++
++    @return $str;
++}
++
++@function str-extension($str) {
++    $extension: str-basename($str, '.');
++    @return if($extension == $str, null, $extension);
++}
++
++@function str-dirname($str, $divider: '/') {
++    $str_copy: $str;
++    $index: str-index($str, $divider);
++    $last_index: null;
++
++    @while $index != null {
++        $str: str-slice($str, $index + 1);
++        $last_index: if($last_index, $last_index, 0) + $index;
++        $index: str-index($str, $divider);
++    }
++
++    @return if($last_index, str-slice($str_copy, 1, $last_index - 1), '.');
++}
++
++@function list-length($list) {
++    @return length($list);
++}
++
++@function list-nth($list, $nth) {
++    $length: length($list);
++    @if ($length == 0 or abs($nth) > $length) {
++        @return null;
++    }
++
++    @if ($nth >= 0) {
++        $nth: $nth + 1;
++    }
++
++    @return nth($list, $nth);
++}
++
++@function list-index($list, $item) {
++    $i: 0;
++    @each $e in $list {
++        @if ($e == $item) {
++            @return $i;
++        }
++
++        $i: $i + 1;
++    }
++
++    @return null;
++}
++
++@function pow($base, $exponent, $root: 1) {
++    @if ($exponent == 0) {
++        @return 1;
++    }
++
++    @if ($base == 0) {
++        @return 0;
++    }
++
++    @if ($root != 1) {
++        @if ($exponent == $root) {
++            @return $base;
++        }
++        $base: nth-root($base, $root);
++    }
++
++    @if $exponent < 0 {
++        $base: 1 / $base;
++        $exponent: -$exponent;
++    } @else if ($exponent % 2 == 0) {
++        $half-pow: pow($base, $exponent / 2);
++        @return $half-pow * $half-pow;
++    }
++
++    $i: 1;
++    $val: $base;
++    @while ($i < $exponent) {
++        $val: $val * $base;
++        $i: $i + 1;
++    }
++
++    @return $val;
++}
++
++@function nth-root($value, $n, $max_iterations: 100) {
++    @if ($n <= 0) {
++        @error "Not supported"
++    }
++
++    @if ($n == 1 or $value == 0) {
++        @return $value;
++    }
++
++    $i: 1;
++    $pre-val: 1;
++    @while ($i < $max_iterations) {
++        $val: (1.0 / $n) * ((($n - 1) * $pre-val) + $value / pow($pre-val, $n - 1));
++
++        @if ($pre-val == $val) {
++            @return $val;
++        }
++
++        $pre-val: $val;
++        $i: $i + 1;
++    }
++
++    @error ("Failed to compute " + $n + "th root of " + $value + " in " +
++            $max_iterations + " iterations");
++}
++
++@function truncate($value, $decimals: 10) {
++    @if ($decimals < 0) {
++        @error "Not supported"
++    }
++
++    $multiplier: pow(10, $decimals);
++    @return floor($value * $multiplier) / $multiplier;
++}
++
++// Credits to https://css-tricks.com/snippets/sass/luminance-color-function/
++@function luminance($color) {
++    $colors: (
++        'red': red($color),
++        'green': green($color),
++        'blue': blue($color)
++    );
++
++    @each $name, $value in $colors {
++        $adjusted: 0;
++        $value: $value / 255;
++
++        @if $value < 0.03928 {
++            $value: $value / 12.92;
++        } @else {
++            $value: ($value + .055) / 1.055;
++            $value: pow($value, 12, 5);
++        }
++
++        $colors: map-merge($colors, ($name: $value));
++    }
++
++    @return ((map-get($colors, 'red') * .2126) +
++             (map-get($colors, 'green') * .7152) +
++             (map-get($colors, 'blue') * .0722));
++}
++
++@function color-contrast($color1, $color2) {
++    $c1-luminance: luminance($color1);
++    $c2-luminance: luminance($color2);
++
++    $lighter-luminance: max($c1-luminance, $c2-luminance);
++    $darker-luminance: min($c1-luminance, $c2-luminance);
++
++    @return ($lighter-luminance + 0.05) / ($darker-luminance + 0.05);
++}
++
++@function optimize-contrast($bg, $fg, $large-text: false, $target: 4.5) {
++    @if ($large-text and $target == 4.5) {
++        $target: 3;
++    }
++
++    $dark-bg: luminance($bg) < luminance($fg);
++    @while (color-contrast($bg, $fg) < $target) {
++        $fg: if($dark-bg, lighten($fg, 0.1), darken($fg, 0.1));
++    }
++
++    @return $fg;
++}
+diff --git a/src/stylesheet/yaru_accent_colors.scss b/src/stylesheet/yaru_accent_colors.scss
+new file mode 100644
+index 0000000..715d0ab
+--- /dev/null
++++ b/src/stylesheet/yaru_accent_colors.scss
+@@ -0,0 +1,113 @@
++// Keep this in sync with
++//   https://github.com/ubuntu/yaru/blob/master/common/accent-colors.scss.in
++
++@function get_accent_color($accent_color, $is_dark: false) {
++    $color: null;
++    @if $accent_color == 'default' {
++        $color: #E95420;
++    } @else if $accent_color == 'sage' {
++        $color: #657B69;
++    } @else if $accent_color == 'olive' {
++        $color: #4B8501;
++    } @else if $accent_color == 'prussiangreen' {
++        $color: #308280;
++    } @else if $accent_color == 'blue' {
++        $color: #0073E5;
++    } @else if $accent_color == 'purple' {
++        $color: #7764D8;
++    } @else if $accent_color == 'magenta' {
++        $color: #B34CB3;
++    } @else if $accent_color == 'red' {
++        $color: #DA3450;
++    } @else if $accent_color == 'yellow' {
++        $color: #C88800;
++    } @else if $accent_color == 'wartybrown' {
++        $color: #B39169;
++    } @else {
++        @error('No known accent color defined!');
++    }
++    @debug('Using accent color ' + $accent_color + ': ' + $color);
++    @return $color;
++}
++
++$yaru_is_dark_variant: @yaru_dark_variant@;
++$yaru_accent_bg_color: get_accent_color('@yaru_accent_color@', $yaru_is_dark_variant);
++$accent_bg_color: $yaru_accent_bg_color;
++$accent_color: $yaru_accent_bg_color;
++:root {
++    --yaru-accent-bg-color: #{$yaru_accent_bg_color};
++    --accent-color: #{$yaru_accent_bg_color};
++    --accent-bg-color: #{$yaru_accent_bg_color};
++}
++$accent-fg-color: white;
++@define-color accent_fg_color #{$accent-fg-color};
++@define-color accent_bg_color #{$accent_bg_color};
++@debug("Accent color is @yaru_accent_color@:" + $yaru_accent_bg_color);
++
++@import '@yaru_theme_entry_point@';
++
++// Optimize accent-color definition for default background colors
++@import 'sass-utils';
++@import 'palette-yaru';
++
++@if str-contains('@yaru_theme_entry_point@', 'stylesheet/defaults') {
++    @define-color accent_color #{$accent_color};
++    $window-bg-color: if($variant == 'light', #FAFAFA, lighten($jet, 8%));
++    $window-fg-color: if($variant == 'light', $inkstone, $porcelain);
++    @define-color window_bg_color #{$window-bg-color};
++    @define-color window_fg_color #{$window-fg-color};
++    :root {
++        --window-bg-color: #{$window-bg-color};
++        --window-fg-color: #{$window-fg-color};
++    }
++
++    @define-color warning_fg_color #{$window-fg-color};
++    @define-color view_fg_color #{$window-fg-color};
++    @define-color headerbar_fg_color #{$window-fg-color};
++    @define-color headerbar_backdrop_color #{$window-bg-color};
++    @define-color headerbar_border_color #{$window-fg-color};
++    @define-color card_fg_color #{$window-fg-color};
++    @define-color dialog_fg_color #{$window-fg-color};
++    @define-color popover_fg_color #{$window-fg-color};
++    @define-color thumbnail_fg_color #{$window-fg-color};
++    :root {
++        --warning-fg-color: #{$window-fg-color};
++        --view-fg-color: #{$window-fg-color};
++        --headerbar-fg-color: #{$window-fg-color};
++        --headerbar-backdrop-color: #{$window-bg-color};
++        --headerbar-border-color: #{$window-fg-color};
++        --card-fg-color: #{$window-fg-color};
++        --dialog-fg-color: #{$window-fg-color};
++        --popover-fg-color: #{$window-fg-color};
++        --thumbnail-fg-color: #{$window-fg-color};
++    }
++
++    $contrast_target: if($variant=='light', 4.51, 4.8);
++    $yaru-accent-color: optimize-contrast($window-bg-color,
++        $yaru_accent_bg_color, $target: $contrast_target);
++    $yaru_accent_bg_color: optimize-contrast($accent_fg_color,
++        $yaru_accent_bg_color, $target: $contrast_target);
++    @define-color yaru_accent_color #{$yaru-accent-color};
++    @define-color yaru_accent_bg_color #{$yaru_accent_bg_color};
++    @define-color accent_color #{$yaru-accent-color};
++    :root {
++        --yaru-accent-color: #{$yaru-accent-color};
++        --yaru-accent-bg-color: #{$yaru_accent_bg_color};
++        --accent-color: #{$yaru-accent-color};
++        --accent-bg-color: #{$yaru_accent_bg_color};
++    }
++
++    @debug("Accent optimized colors for @yaru_accent_color@ are accent " +
++        $yaru-accent-color + ", bg " + $yaru-accent-bg-color);
++
++    $contrast_target: if($variant=='light', 6, 5.5);
++    $link-color: optimize-contrast($window-bg-color,
++        $accent-color, $target: $contrast_target);
++    $link-visited-color: color-mix(in srgb, $link-color 80%, $window-fg-color) !default;
++    @define-color yaru_link_color #{$link-color};
++    @define-color yaru_link_visited_color #{$link-visited-color};
++    :root {
++        --yaru-link-color: #{$link-color};
++        --yaru-link-visited-color: #{$link-visited-color};
++    }
++}

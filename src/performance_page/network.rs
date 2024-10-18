@@ -21,13 +21,11 @@
 use std::cell::{Cell, OnceCell};
 
 use adw::subclass::prelude::*;
-use glib::{clone, ParamSpec, Properties, Value};
+use glib::{ParamSpec, Properties, Value};
 use gtk::{gio, glib, prelude::*};
 
-use crate::application::INTERVAL_STEP;
-use crate::i18n::*;
-
-use super::widgets::GraphWidget;
+use super::{widgets::GraphWidget, PageExt};
+use crate::{application::INTERVAL_STEP, i18n::*};
 
 mod imp {
     use super::*;
@@ -65,8 +63,10 @@ mod imp {
 
         pub legend_send: OnceCell<gtk::Picture>,
         pub speed_send: OnceCell<gtk::Label>,
+        pub total_sent: OnceCell<gtk::Label>,
         pub legend_recv: OnceCell<gtk::Picture>,
         pub speed_recv: OnceCell<gtk::Label>,
+        pub total_recv: OnceCell<gtk::Label>,
         pub interface_name_label: OnceCell<gtk::Label>,
         pub connection_type_label: OnceCell<gtk::Label>,
         pub ssid: OnceCell<gtk::Label>,
@@ -78,6 +78,9 @@ mod imp {
         pub ipv6_address: OnceCell<gtk::Label>,
 
         signal_strength_percent: Cell<Option<u8>>,
+        pub use_bytes: Cell<bool>,
+        // in bps
+        pub max_speed: Cell<Option<u64>>,
     }
 
     impl Default for PerformancePageNetwork {
@@ -100,8 +103,10 @@ mod imp {
 
                 legend_send: Default::default(),
                 speed_send: Default::default(),
+                total_sent: Default::default(),
                 legend_recv: Default::default(),
                 speed_recv: Default::default(),
+                total_recv: Default::default(),
                 interface_name_label: Default::default(),
                 connection_type_label: Default::default(),
                 ssid: Default::default(),
@@ -113,6 +118,8 @@ mod imp {
                 ipv6_address: Default::default(),
 
                 signal_strength_percent: Cell::new(None),
+                use_bytes: Cell::new(false),
+                max_speed: Cell::new(None),
             }
         }
     }
@@ -134,28 +141,15 @@ mod imp {
         }
 
         fn connection_type(&self) -> u8 {
-            self.connection_type.get() as u8
+            self.connection_type.get().into()
         }
 
         fn set_connection_type(&self, connection_type: u8) {
-            {
-                let if_type = self.connection_type.get();
-                if if_type as u8 == connection_type {
-                    return;
-                }
+            if connection_type == self.connection_type.get().into() {
+                return;
             }
 
-            match connection_type {
-                0_u8 => self
-                    .connection_type
-                    .replace(crate::sys_info_v2::NetDeviceType::Wired),
-                1_u8 => self
-                    .connection_type
-                    .replace(crate::sys_info_v2::NetDeviceType::Wireless),
-                _ => self
-                    .connection_type
-                    .replace(crate::sys_info_v2::NetDeviceType::Other),
-            };
+            self.connection_type.replace(connection_type.into());
         }
 
         fn infobar_content(&self) -> Option<gtk::Widget> {
@@ -169,45 +163,57 @@ mod imp {
             this.insert_action_group("graph", Some(&actions));
 
             let action = gio::SimpleAction::new("network-settings", None);
-            action.connect_activate(clone!(@weak this => move |_, _| {
-                use crate::sys_info_v2::NetDeviceType;
-                unsafe {
-                    PerformancePageNetwork::gnome_settings_activate_action(
-                        if this.connection_type() == NetDeviceType::Wireless as u8 {
-                            "('launch-panel', [<('wifi', [<''>])>], {})"
-                        } else {
-                            "('launch-panel', [<('network', [<''>])>], {})"
+            action.connect_activate({
+                let this = this.downgrade();
+                move |_, _| {
+                    use crate::sys_info_v2::NetDeviceType;
+                    if let Some(this) = this.upgrade() {
+                        unsafe {
+                            PerformancePageNetwork::gnome_settings_activate_action(
+                                if this.connection_type() == NetDeviceType::Wireless as u8 {
+                                    "('launch-panel', [<('wifi', [<''>])>], {})"
+                                } else {
+                                    "('launch-panel', [<('network', [<''>])>], {})"
+                                },
+                            )
                         }
-                    )
+                    }
                 }
-            }));
+            });
             actions.add_action(&action);
 
             let action = gio::SimpleAction::new("copy", None);
-            action.connect_activate(clone!(@weak this => move |_, _| {
-                let clipboard = this.clipboard();
-                clipboard.set_text(this.imp().data_summary().as_str());
-            }));
+            action.connect_activate({
+                let this = this.downgrade();
+                move |_, _| {
+                    if let Some(this) = this.upgrade() {
+                        let clipboard = this.clipboard();
+                        clipboard.set_text(this.imp().data_summary().as_str());
+                    }
+                }
+            });
             actions.add_action(&action);
         }
 
         fn configure_context_menu(this: &super::PerformancePageNetwork) {
             let right_click_controller = gtk::GestureClick::new();
             right_click_controller.set_button(3); // Secondary click (AKA right click)
-            right_click_controller.connect_released(
-                clone!(@weak this => move |_click, _n_press, x, y| {
-                    this
-                        .imp()
-                        .context_menu
-                        .set_pointing_to(Some(&gtk::gdk::Rectangle::new(
-                            x.round() as i32,
-                            y.round() as i32,
-                            1,
-                            1,
-                        )));
-                    this.imp().context_menu.popup();
-                }),
-            );
+            right_click_controller.connect_released({
+                let this = this.downgrade();
+                move |_click, _n_press, x, y| {
+                    if let Some(this) = this.upgrade() {
+                        let this = this.imp();
+                        this.context_menu
+                            .set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+                                x.round() as i32,
+                                y.round() as i32,
+                                1,
+                                1,
+                            )));
+                        this.context_menu.popup();
+                    }
+                }
+            });
             this.add_controller(right_click_controller);
         }
 
@@ -334,7 +340,6 @@ mod imp {
             }
 
             let conn_type = match connection_type {
-                NetDeviceType::Wired => i18n("Ethernet"),
                 NetDeviceType::Wireless => {
                     if let Some(ssid) = this.ssid.get() {
                         ssid.set_visible(true);
@@ -349,9 +354,9 @@ mod imp {
                         frequency.set_visible(true);
                     }
 
-                    i18n("Wi-Fi")
+                    connection_type.to_string()
                 }
-                NetDeviceType::Other => i18n("Other"),
+                _ => connection_type.to_string(),
             };
 
             if let Some(connection_type_label) = this.connection_type_label.get() {
@@ -374,6 +379,17 @@ mod imp {
             this.usage_graph.set_filled(0, false);
             this.usage_graph.set_dashed(0, true);
 
+            let max_speed = network_device.max_speed;
+            this.max_speed.set(Some(max_speed));
+
+            if max_speed > 0 {
+                this.usage_graph
+                    .set_value_range_max(max_speed as f32 * this.obj().byte_conversion_factor());
+            } else {
+                this.usage_graph
+                    .set_scaling(GraphWidget::auto_pow2_scaling());
+            }
+
             true
         }
 
@@ -383,11 +399,15 @@ mod imp {
         ) -> bool {
             let this = this.imp();
 
-            let sent = network_device.send_bps * 8.;
-            let received = network_device.recv_bps * 8.;
+            let use_bytes = this.use_bytes.get();
+            let data_per_time = if use_bytes { i18n("B/s") } else { i18n("bps") };
+            let byte_coeff = if use_bytes { 1f32 } else { 8f32 };
 
-            this.usage_graph.add_data_point(0, sent);
-            this.usage_graph.add_data_point(1, received);
+            let send_speed = network_device.send_bps * byte_coeff;
+            let rec_speed = network_device.recv_bps * byte_coeff;
+
+            this.usage_graph.add_data_point(0, send_speed);
+            this.usage_graph.add_data_point(1, rec_speed);
 
             if let Some(wireless_info) = &network_device.wireless_info {
                 if let Some(ssid) = this.ssid.get() {
@@ -422,8 +442,12 @@ mod imp {
                         i18n("Unknown"),
                         |kbps| {
                             let (val, unit, dec_to_display) =
-                                crate::to_human_readable(*kbps as f32 * 1000., 1024.);
-                            format!("{0:.2$} {1}bps", val, unit, dec_to_display)
+                                crate::to_human_readable(*kbps as f32 * 1000. * byte_coeff, 1024.);
+                            format!(
+                                "{}{}",
+                                format!("{0:.2$} {1}", val, unit, dec_to_display),
+                                data_per_time
+                            )
                         },
                     ));
                 }
@@ -440,28 +464,51 @@ mod imp {
             }
 
             let max_y = crate::to_human_readable(this.usage_graph.value_range_max(), 1024.);
-            this.max_y.set_text(&i18n_f(
-                "{} {}bps",
-                &[&format!("{}", max_y.0), &format!("{}", max_y.1)],
+            this.max_y.set_text(&format!(
+                "{} {}{}",
+                &format!("{0:.1$}", max_y.0, max_y.2),
+                &format!("{}", max_y.1),
+                &data_per_time,
             ));
 
-            let speed_send_info = crate::to_human_readable(sent, 1024.);
+            let speed_send_info = crate::to_human_readable(send_speed, 1024.);
             if let Some(speed_send) = this.speed_send.get() {
-                speed_send.set_text(&i18n_f(
-                    "{} {}bps",
+                speed_send.set_text(&format!(
+                    "{} {}{}",
+                    &format!("{0:.1$}", speed_send_info.0, speed_send_info.2),
+                    &format!("{}", speed_send_info.1),
+                    &data_per_time,
+                ));
+            }
+            let speed_recv_info = crate::to_human_readable(rec_speed, 1024.);
+            if let Some(speed_recv) = this.speed_recv.get() {
+                speed_recv.set_text(&format!(
+                    "{} {}{}",
+                    &format!("{0:.1$}", speed_recv_info.0, speed_recv_info.2),
+                    &format!("{}", speed_recv_info.1),
+                    &data_per_time,
+                ));
+            }
+
+            let sent = crate::to_human_readable((network_device.sent_bytes) as f32, 1024.);
+            if let Some(total_sent) = this.total_sent.get() {
+                total_sent.set_text(&i18n_f(
+                    "{} {}{}B",
                     &[
-                        &format!("{0:.1$}", speed_send_info.0, speed_send_info.2),
-                        &format!("{}", speed_send_info.1),
+                        &format!("{0:.1$}", sent.0, sent.2),
+                        &format!("{}", sent.1),
+                        if sent.1.is_empty() { "" } else { "i" },
                     ],
                 ));
             }
-            let speed_recv_info = crate::to_human_readable(received, 1024.);
-            if let Some(speed_recv) = this.speed_recv.get() {
-                speed_recv.set_text(&i18n_f(
-                    "{} {}bps",
+            let received = crate::to_human_readable((network_device.recv_bytes) as f32, 1024.);
+            if let Some(total_recv) = this.total_recv.get() {
+                total_recv.set_text(&i18n_f(
+                    "{} {}{}B",
                     &[
-                        &format!("{0:.1$}", speed_recv_info.0, speed_recv_info.2),
-                        &format!("{}", speed_recv_info.1),
+                        &format!("{0:.1$}", received.0, received.2),
+                        &format!("{}", received.1),
+                        if received.1.is_empty() { "" } else { "i" },
                     ],
                 ));
             }
@@ -648,6 +695,11 @@ mod imp {
                     .object::<gtk::Label>("speed_send")
                     .expect("Could not find `speed_send` object in details pane"),
             );
+            let _ = self.total_sent.set(
+                sidebar_content_builder
+                    .object::<gtk::Label>("total_sent")
+                    .expect("Could not find `total_send` object in details pane"),
+            );
             let _ = self.legend_recv.set(
                 sidebar_content_builder
                     .object::<gtk::Picture>("legend_recv")
@@ -657,6 +709,11 @@ mod imp {
                 sidebar_content_builder
                     .object::<gtk::Label>("speed_recv")
                     .expect("Could not find `speed_recv` object in details pane"),
+            );
+            let _ = self.total_recv.set(
+                sidebar_content_builder
+                    .object::<gtk::Label>("total_recv")
+                    .expect("Could not find `total_recv` object in details pane"),
             );
             let _ = self.interface_name_label.set(
                 sidebar_content_builder
@@ -717,6 +774,22 @@ glib::wrapper! {
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
+impl PageExt for PerformancePageNetwork {
+    fn infobar_collapsed(&self) {
+        self.imp()
+            .infobar_content
+            .get()
+            .and_then(|ic| Some(ic.set_margin_top(10)));
+    }
+
+    fn infobar_uncollapsed(&self) {
+        self.imp()
+            .infobar_content
+            .get()
+            .and_then(|ic| Some(ic.set_margin_top(65)));
+    }
+}
+
 impl PerformancePageNetwork {
     pub fn new(
         interface_name: &str,
@@ -732,8 +805,9 @@ impl PerformancePageNetwork {
             this: &PerformancePageNetwork,
             settings: &gio::Settings,
         ) {
-            let data_points = settings.int("perfomance-page-data-points") as u32;
-            let graph_max_duration = (((settings.int("app-update-interval") as f64)
+            let data_points = settings.int("performance-page-data-points") as u32;
+            let smooth = settings.boolean("performance-smooth-graphs");
+            let graph_max_duration = (((settings.uint64("app-update-interval-u64") as f64)
                 * INTERVAL_STEP)
                 * (data_points as f64))
                 .round() as u32;
@@ -765,22 +839,127 @@ impl PerformancePageNetwork {
             ));
 
             this.usage_graph.set_data_points(data_points);
+            this.usage_graph.set_smooth_graphs(smooth);
         }
         update_refresh_rate_sensitive_labels(&this, settings);
 
-        settings.connect_changed(
-            Some("perfomance-page-data-points"),
-            clone!(@weak this => move |settings, _| {
-                update_refresh_rate_sensitive_labels(&this, settings);
-            }),
-        );
+        this.imp()
+            .use_bytes
+            .set(settings.boolean("performance-page-network-use-bytes"));
 
-        settings.connect_changed(
-            Some("app-update-interval"),
-            clone!(@weak this => move |settings, _| {
-                update_refresh_rate_sensitive_labels(&this, settings);
-            }),
-        );
+        let max_speed = this.imp().max_speed.get().unwrap_or(0);
+        if max_speed > 0 {
+            let dynamic_scaling = settings.boolean("performance-page-network-dynamic-scaling");
+
+            if dynamic_scaling {
+                this.imp()
+                    .usage_graph
+                    .set_scaling(GraphWidget::auto_pow2_scaling());
+            } else {
+                this.imp()
+                    .usage_graph
+                    .set_scaling(GraphWidget::no_scaling());
+
+                let max = (max_speed / if this.imp().use_bytes.get() { 8 } else { 1 }) as f32;
+                this.imp().usage_graph.set_value_range_max(max);
+            }
+        }
+
+        settings.connect_changed(Some("performance-page-network-dynamic-scaling"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    if let Some(speed) = this.imp().max_speed.get() {
+                        if speed > 0 {
+                            let dynamic_scaling =
+                                settings.boolean("performance-page-network-dynamic-scaling");
+
+                            if dynamic_scaling {
+                                this.imp()
+                                    .usage_graph
+                                    .set_scaling(GraphWidget::auto_pow2_scaling());
+                            } else {
+                                this.imp()
+                                    .usage_graph
+                                    .set_scaling(GraphWidget::no_scaling());
+
+                                let max = speed as f32 * this.byte_conversion_factor();
+                                this.imp().usage_graph.set_value_range_max(max);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        settings.connect_changed(Some("performance-page-network-use-bytes"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    let new_units = settings.boolean("performance-page-network-use-bytes");
+                    let old_units = this.imp().use_bytes.get();
+                    if old_units != new_units {
+                        let conversion_factor = if new_units { 1. / 8. } else { 8. };
+                        this.imp().usage_graph.set_data(
+                            0,
+                            this.imp()
+                                .usage_graph
+                                .data(0)
+                                .unwrap_or(vec![])
+                                .into_iter()
+                                .map(|it| it * conversion_factor)
+                                .collect(),
+                        );
+                        this.imp().usage_graph.set_data(
+                            1,
+                            this.imp()
+                                .usage_graph
+                                .data(1)
+                                .unwrap_or(vec![])
+                                .into_iter()
+                                .map(|it| it * conversion_factor)
+                                .collect(),
+                        );
+
+                        if let Some(speed) = this.imp().max_speed.get() {
+                            if speed > 0 {
+                                this.imp().usage_graph.set_value_range_max(
+                                    speed as f32 * this.byte_conversion_factor(),
+                                );
+                            }
+                        }
+                    }
+                    this.imp().use_bytes.set(new_units);
+                }
+            }
+        });
+
+        settings.connect_changed(Some("performance-page-data-points"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
+
+        settings.connect_changed(Some("app-update-interval-u64"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
+
+        settings.connect_changed(Some("performance-smooth-graphs"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
 
         this
     }
@@ -808,5 +987,33 @@ impl PerformancePageNetwork {
             .infobar_content
             .get()
             .and_then(|ic| Some(ic.set_margin_top(65)));
+    }
+
+    pub fn use_bytes(&self) -> bool {
+        self.imp().use_bytes.get()
+    }
+
+    pub fn unit_per_second_label(&self) -> String {
+        if self.use_bytes() {
+            i18n("B/s")
+        } else {
+            i18n("bps")
+        }
+    }
+
+    pub fn bit_conversion_factor(&self) -> f32 {
+        if self.use_bytes() {
+            1. / 8.
+        } else {
+            1.
+        }
+    }
+
+    pub fn byte_conversion_factor(&self) -> f32 {
+        if self.use_bytes() {
+            1.
+        } else {
+            8.
+        }
     }
 }

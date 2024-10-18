@@ -1,4 +1,4 @@
-/* apps_page/list_items/list_item.rs
+/* apps_page/list_item.rs
  *
  * Copyright 2023 Romeo Calota
  *
@@ -20,18 +20,10 @@
 
 use std::cell::Cell;
 
-use gtk::{
-    glib,
-    glib::prelude::*,
-    glib::{ParamSpec, Properties, Value, Variant},
-    prelude::*,
-    subclass::prelude::*,
-};
+use glib::{gobject_ffi, ParamSpec, Properties, Value, Variant, WeakRef};
+use gtk::{glib, prelude::*, subclass::prelude::*};
 
-use crate::{
-    apps_page::view_model::{ContentType, ViewModel},
-    i18n::*,
-};
+use crate::apps_page::row_model::{ContentType, RowModel};
 
 mod imp {
     use super::*;
@@ -47,6 +39,8 @@ mod imp {
         pub name: TemplateChild<gtk::Label>,
 
         css_provider: Cell<gtk::CssProvider>,
+        gesture_click: gtk::GestureClick,
+        row: Cell<Option<WeakRef<gtk::Widget>>>,
 
         #[allow(dead_code)]
         #[property(name = "name", get = Self::name, set = Self::set_name, type = glib::GString)]
@@ -54,7 +48,9 @@ mod imp {
         #[allow(dead_code)]
         #[property(name = "icon", get = Self::icon, set = Self::set_icon, type = glib::GString)]
         icon_property: [u8; 0],
-        #[property(set = Self::set_content_type, type = u8)]
+        #[property(get, set)]
+        pid: Cell<u32>,
+        #[property(get = Self::content_type, set = Self::set_content_type, type = u8)]
         pub content_type: Cell<ContentType>,
         #[property(get, set = Self::set_show_expander)]
         pub show_expander: Cell<bool>,
@@ -78,9 +74,12 @@ mod imp {
                 icon: TemplateChild::default(),
 
                 css_provider: Cell::new(gtk::CssProvider::new()),
+                gesture_click: gtk::GestureClick::new(),
+                row: Cell::new(None),
 
                 name_property: [0; 0],
                 icon_property: [0; 0],
+                pid: Cell::new(0),
                 content_type: Cell::new(ContentType::SectionHeader),
                 show_expander: Cell::new(true),
                 expanded: Cell::new(false),
@@ -117,11 +116,14 @@ mod imp {
             let icon_theme = gtk::IconTheme::for_display(&display);
 
             if icon_theme.has_icon(icon) {
-                self.icon.set_from_icon_name(Some(icon));
+                self.icon.set_icon_name(Some(icon));
             } else {
-                self.icon
-                    .set_from_icon_name(Some("application-x-executable"));
+                self.icon.set_icon_name(Some("application-x-executable"));
             }
+        }
+
+        fn content_type(&self) -> u8 {
+            self.content_type.get() as u8
         }
 
         fn set_content_type(&self, v: u8) {
@@ -280,6 +282,31 @@ mod imp {
         fn property(&self, id: usize, pspec: &ParamSpec) -> Value {
             self.derived_property(id, pspec)
         }
+
+        fn constructed(&self) {
+            self.parent_constructed();
+
+            self.gesture_click.set_button(3);
+            self.gesture_click.connect_released({
+                let this = self.obj();
+                let weak_self = unsafe {
+                    let weak_ref =
+                        Box::leak(Box::<gobject_ffi::GWeakRef>::new(core::mem::zeroed()));
+                    gobject_ffi::g_weak_ref_init(weak_ref, this.as_ptr() as *mut _);
+
+                    weak_ref as *mut _ as u64
+                };
+                let this = self.obj().downgrade();
+                move |_, _, x, y| {
+                    if let Some(this) = this.upgrade() {
+                        let _ = this.activate_action(
+                            "apps-page.show-context-menu",
+                            Some(&Variant::from((this.pid(), weak_self, x, y))),
+                        );
+                    }
+                }
+            });
+        }
     }
 
     impl WidgetImpl for ListItem {
@@ -288,11 +315,10 @@ mod imp {
 
             self.parent_realize();
 
-            if let Some(tree_expander) = self.obj().parent() {
-                let view_model = match tree_expander
-                    .downcast_ref::<gtk::TreeExpander>()
-                    .and_then(|te| te.item())
-                    .and_then(|model| model.downcast::<ViewModel>().ok())
+            if let Some(tree_expander) = self.obj().expander() {
+                let row_model = match tree_expander
+                    .item()
+                    .and_then(|model| model.downcast::<RowModel>().ok())
                 {
                     None => {
                         g_critical!(
@@ -309,14 +335,12 @@ mod imp {
                 // out collapsed. We set the expanded property to true in the model, so that any
                 // action from the user (expand/collapse) will be ignored. We do this with a timeout
                 // so that the view has time to refresh at least once with the binding set to true.
-                let model_content_type: ContentType =
-                    unsafe { core::mem::transmute(view_model.content_type()) };
-                if model_content_type == ContentType::App {
+                if row_model.content_type() == ContentType::App as u8 {
                     glib::timeout_add_seconds_local_once(1, {
-                        let view_model = view_model.downgrade();
+                        let row_model = row_model.downgrade();
                         move || {
-                            if let Some(view_model) = view_model.upgrade() {
-                                view_model.set_expanded(true);
+                            if let Some(row_model) = row_model.upgrade() {
+                                row_model.set_expanded(true);
                             }
                         }
                     });
@@ -332,104 +356,27 @@ mod imp {
                             .add_provider(&style_provider, gtk::STYLE_PROVIDER_PRIORITY_USER);
                     }
 
-                    if let Some(list_item_widget) = column_view_cell.parent() {
-                        let right_click_controller = gtk::GestureClick::new();
-                        right_click_controller.set_button(3); // Secondary click (AKA right click)
+                    if let Some(new_row) = column_view_cell.parent() {
+                        if self.content_type.get() != ContentType::SectionHeader
+                            && row_model.pid() == 0
+                        {
+                            new_row.set_visible(false);
+                        }
 
-                        list_item_widget.add_controller(right_click_controller.clone());
+                        let old_row = unsafe { &*self.row.as_ptr() }
+                            .as_ref()
+                            .and_then(|r| r.upgrade());
 
-                        right_click_controller.connect_released(glib::clone!(@weak self as this => move |_, _, x, y| {
-                            let view_model = match this
-                                .obj()
-                                .parent()
-                                .and_downcast_ref::<gtk::TreeExpander>()
-                                .and_then(|te| te.item())
-                                .and_downcast::<ViewModel>()
-                            {
-                                None => {
-                                    g_critical!(
-                                        "MissionCenter::AppsPage",
-                                        "Failed to get ViewModel, cannot show context menu for App/Process"
-                                    );
-                                    return;
-                                }
-                                Some(m) => m,
-                            };
+                        if Some(new_row.clone()) == old_row {
+                            return;
+                        }
 
-                            let (stop_label, force_stop_label, is_app) = match view_model.content_type() {
-                                0 => {
-                                    // ContentType::SectionHeader
-                                    return;
-                                }
-                                1 => {
-                                    // ContentType::App
-                                    (i18n("Stop Application"), i18n("Force Stop Application"), true)
-                                }
-                                2 => {
-                                    // ContentType::Process
-                                    (i18n("Stop Process"), i18n("Force Stop Process"), false)
-                                }
-                                _ => unreachable!(),
-                            };
+                        if let Some(old_row) = old_row {
+                            old_row.remove_controller(&self.gesture_click);
+                        }
 
-                            let apps_page = match list_item_widget.
-                                parent()
-                                .and_then(|p| p.parent())
-                                .and_then(|p| p.parent())
-                                .and_then(|p| p.parent())
-                                .and_then(|p| p.downcast::<crate::apps_page::AppsPage>().ok()) {
-                                Some(ap) => ap,
-                                None => {
-                                    g_critical!(
-                                        "MissionCenter::AppsPage",
-                                        "Failed to get AppsPage, cannot show context menu for App/Process"
-                                    );
-                                    return;
-                                }
-                            };
-
-                            let mouse_pos = match list_item_widget.compute_point(
-                                &apps_page,
-                                &gtk::graphene::Point::new(x as _, y as _),
-                            ) {
-                                None => {
-                                    g_critical!(
-                                        "MissionCenter::AppsPage",
-                                        "Failed to compute_point, context menu will not be anchored to mouse position"
-                                    );
-                                    (x as f32, y as f32)
-                                }
-                                Some(p) => {
-                                    (p.x(), p.y())
-                                }
-                            };
-
-                            let context_menu = apps_page.context_menu();
-
-                            let _ = list_item_widget.activate_action(
-                                "listitem.select",
-                                Some(&Variant::from((true, true))),
-                            );
-
-                            let menu = gtk::gio::Menu::new();
-
-                            let mi_stop = gtk::gio::MenuItem::new(Some(&stop_label), None);
-                            mi_stop.set_action_and_target_value(Some("apps-page.stop"), Some(&Variant::from((view_model.pid(), is_app))));
-                            let mi_force_stop = gtk::gio::MenuItem::new(Some(&force_stop_label), None);
-                            mi_force_stop.set_action_and_target_value(Some("apps-page.force-stop"), Some(&Variant::from((view_model.pid(), is_app))));
-
-                            menu.append_item(&mi_stop);
-                            menu.append_item(&mi_force_stop);
-
-                            context_menu.set_menu_model(Some(&menu));
-                            context_menu.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
-                                mouse_pos.0.round() as i32,
-                                mouse_pos.1.round() as i32,
-                                1,
-                                1,
-                            )));
-                            context_menu.popup();
-                        }));
+                        new_row.add_controller(self.gesture_click.clone());
+                        self.row.set(Some(new_row.downgrade()));
                     }
                 }
             }
@@ -443,4 +390,23 @@ glib::wrapper! {
     pub struct ListItem(ObjectSubclass<imp::ListItem>)
         @extends gtk::Box, gtk::Widget,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Orientable;
+}
+
+impl ListItem {
+    pub fn expander(&self) -> Option<gtk::TreeExpander> {
+        self.parent()
+            .and_then(|p| p.downcast::<gtk::TreeExpander>().ok())
+    }
+
+    pub fn row(&self) -> Option<gtk::Widget> {
+        self.expander()
+            .and_then(|te| te.parent())
+            .and_then(|p| p.parent())
+    }
+
+    pub fn row_model(&self) -> Option<RowModel> {
+        self.expander()
+            .and_then(|te| te.item())
+            .and_then(|model| model.downcast::<RowModel>().ok())
+    }
 }

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: missioncenter\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-03-23 09:38+0200\n"
+"POT-Creation-Date: 2024-09-14 20:54+0300\n"
 "PO-Revision-Date: 2024-04-15 03:01+0000\n"
 "Last-Translator: Fionn <mehafo3499@adstam.com>\n"
 "Language-Team: Hungarian <https://hosted.weblate.org/projects/mission-center/"
@@ -34,30 +34,27 @@ msgstr ""
 "Kihasználtság"
 
 #: data/io.missioncenter.MissionCenter.metainfo.xml.in:5
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:7
 msgid "Mission Center Developers"
 msgstr "Mission Center Fejlesztők"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:15
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:17
 msgid "Monitor system resource usage"
 msgstr "Rendszer erőforrás-használat figyelése"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:17
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:19
 msgid "Monitor your CPU, Memory, Disk, Network and GPU usage"
 msgstr "Figyeld a CPU, Memória, Lemez, Hálózat és GPU kihasználtságodat"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:18
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:144
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:170
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:188
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:230
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:20
 msgid "Features:"
 msgstr "Jellemzők:"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:20
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:22
 msgid "Monitor overall or per-thread CPU usage"
 msgstr "Általános vagy szálankénti CPU-használat figyelése"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:21
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:23
 msgid ""
 "See system process, thread, and handle count, uptime, clock speed (base and "
 "current), cache sizes"
@@ -65,24 +62,24 @@ msgstr ""
 "Lásd a rendszerfolyamatok, szálak és kezelők számát, az üzemidőt, az "
 "órajelek sebességét (alap és aktuális), a gyorsítótár méretét"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:22
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:24
 msgid "Monitor RAM and Swap usage"
 msgstr "A RAM és a Swap használatának felügyelete"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:23
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:25
 msgid "See a breakdown how the memory is being used by the system"
 msgstr "Lásd, hogy a rendszer hogyan használja fel a memóriát részletesen"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:24
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:26
 msgid "Monitor Disk utilization and transfer rates"
 msgstr "Lemezkihasználtság és átviteli sebesség figyelése"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:25
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:27
 msgid "Monitor network utilization and transfer speeds"
 msgstr ""
 "A hálózat kihasználtságának és az átviteli sebességnek a nyomon követése"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:26
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:28
 msgid ""
 "See network interface information such as network card name, connection type "
 "(Wi-Fi or Ethernet), wireless speeds and frequency, hardware address, IP "
@@ -92,7 +89,7 @@ msgstr ""
 "típusa (Wi-Fi vagy Ethernet), vezeték nélküli sebesség és frekvencia, "
 "hardvercím, IP-cím"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:29
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:31
 msgid ""
 "Monitor overall GPU usage, video encoder and decoder usage, memory usage and "
 "power consumption, powered by the popular NVTOP project"
@@ -101,564 +98,74 @@ msgstr ""
 "memóriahasználatnak és az energiafogyasztásnak a nyomon követése a népszerű "
 "NVTOP projekt segítségével"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:32
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:34
 msgid "See a breakdown of resource usage by app and process"
 msgstr ""
 "Lásd az alkalmazások és folyamatok erőforrásfelhasználásának részletes "
 "lebontását"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:33
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:35
 msgid "Supports a minified summary view for simple monitoring"
 msgstr ""
 "Támogatja a kicsinyített összefoglaló nézetet az egyszerű felügyelethez"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:34
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:36
+#, fuzzy
 msgid ""
-"Use OpenGL rendering for all the graphs in an effort to reduce CPU and "
-"overall resource usage"
+"Use hardware accelerated rendering for all the graphs in an effort to reduce "
+"CPU and overall resource usage"
 msgstr ""
 "OpenGL renderelés használata az összes grafikonhoz a CPU és az általános "
 "erőforrás-használat csökkentése érdekében"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:35
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:37
 msgid "Uses GTK4 and Libadwaita"
 msgstr "GTK4 és Libadwaita használata"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:36
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:38
 msgid "Written in Rust"
 msgstr "Rust programozási nyelven megírva"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:37
-msgid "Flatpak first"
-msgstr "Először Flatpak"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:39
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:40
 msgid "Limitations (there is ongoing work to overcome all of these):"
 msgstr "Korlátozások (folyamatban van a munka mindezen korlátok leküzdésére):"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:41
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:42
 msgid "No per-process network usage"
 msgstr "Nincs folyamatonkénti hálózathasználat"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:42
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:43
 msgid "GPU support is experimental"
 msgstr "A videokártya támogatás kísérleti"
 
 #: data/io.missioncenter.MissionCenter.metainfo.xml.in:44
+msgid ""
+"Intel GPU monitoring is only supported for Broadwell and later GPUs; and "
+"does not support VRAM, power, or temperature monitoring"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:45
+msgid ""
+"When using Linux Mint/Cinnamon, launched applications may not show up in the "
+"\"Applications\" section (Upstream issue: https://github.com/linuxmint/"
+"cinnamon/issues/12015)"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.metainfo.xml.in:47
 msgid "Comments, suggestions, bug reports and contributions welcome"
 msgstr ""
 "Megjegyzések, javaslatok, hibajelentések és hozzájárulások szívesen "
 "fogadottak"
 
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:107
-msgid "Display optical device information in the Performance tab"
-msgstr "Optikai eszközinformációinak megjelenítése a Teljesítmény fülön"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:108
-msgid "Fix a bug where the Gatherer process would crash at startup"
-msgstr ""
-"Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok listája "
-"néhány felhasználó esetében összeomlott induláskor"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:109
-msgid "Remove the need for admin rights to display extended memory information"
-msgstr ""
-"Az adminisztrátori jogosultságok szükségességének eltávolítása a "
-"kiterjesztett memóriainformációk megjelenítéséhez"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:110
-msgid "Remove the requirement for `libgcc_s.so.1` on musl-based systems"
-msgstr "A `libgcc_s.so.1` szükségességének eltávolítása musl alapú rendszereken"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:111
-msgid ""
-"Make the saturation and transfer graphs the same height in the disk usage "
-"panes"
-msgstr ""
-"Az aktivitás és átviteli sebesség grafikonok azonos magasságúvá tétele a "
-"lemezhasználati panelen"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:112
-msgid "Translation updates and fixes"
-msgstr "Fordítások frissítése és javítások"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:120
-msgid ""
-"Fix a bug where the number of CPUs was incorrectly detected on some systems "
-"(again!)"
-msgstr ""
-"Hiba javítása, amelynek során néhány rendszeren helytelenül észlelték a CPU-"
-"k számát (újra!)"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:128
-msgid ""
-"Fix a bug where the number of CPUs was incorrectly detected on some systems"
-msgstr ""
-"Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok listája "
-"néhány rendszeren helytelen CPU számot érzékelt"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:129
-msgid "Add missing icon for the details panel in the Performance tab"
-msgstr "Hiányzó ikon hozzáadása a részletek panelhez a Teljesítmény fülön"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:137
-msgid ""
-"Fix a regression in 0.4.0 where GPU data would not be available for some "
-"users"
-msgstr ""
-"0.4.0-ban bekövetkezett változtatás javítása, amelynek következtében néhány "
-"felhasználónál nem volt elérhető videokártya adat"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:146
-msgid "Update to GTK 4.12 and libadwaita 1.4"
-msgstr "Frissítés GTK4.12 és libadwaita 1.4-re"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:147
-msgid "Redesigned the Performance tab to be adaptive"
-msgstr "A Teljesítmény fül alkalmazkodóvá tétele"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:148
-msgid "Early and very minimal Intel GPU support"
-msgstr "Korai és nagyon minimális Intel GPU-támogatás"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:149
-msgid "Add GPU memory usage column to the Apps page"
-msgstr "GPU memóriahasználat oszlop hozzáadása az alkalmazások oldalhoz"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:150
-msgid "Added an AppImage"
-msgstr "AppImage hozzáadása"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:151
-msgid ""
-"The Performance tab now shows what kind of virtualization is enabled on the "
-"host"
-msgstr ""
-"A teljesítmény lap most megmutatja, hogy milyen virtualizációt használ a "
-"gazda rendszer"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:152
-msgid "The logical CPU graphs are now arranged in a more pleasing manner"
-msgstr "A logikai CPU grafikonok most kellemesebben vannak elrendezve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:153
-msgid ""
-"The Gatherer was rearchitected and now uses D-Bus for communication with the "
-"main app"
-msgstr ""
-"A Gyűjtő szerkezetét átalakítottuk, most már a fő alkalmazással való "
-"kommunikációhoz a D-Bus-t használja"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:155
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:176
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:195
-msgid "Fixes:"
-msgstr "Javítások:"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:157
-msgid "Fix misaligned header in the Apps tab with GTK 4.12"
-msgstr ""
-"Az alkalmazások fülön lévő fejléc hibás elrendezésének javítása GTK 4.12 "
-"alatt"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:158
-msgid ""
-"Fix app and Gatherer not starting due to LD_PRELOAD being set in the host "
-"environment"
-msgstr ""
-"Javítva a hiba ami miatt az alkalmazás és a Gyűjtő nem indul el, mert az "
-"LD_PRELOAD be van állítva a gazdagép környezetében"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:159
-msgid ""
-"Fix sometimes Apps not showing the accumulated resource usage from all it's "
-"children"
-msgstr ""
-"Javítás: néha az alkalmazások nem mutatják az összes gyermeküktől származó "
-"felhalmozott erőforrás-felhasználást"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:160
-msgid ""
-"Fix missing L1/2/3 CPU cache information missing when NUMA is not enabled"
-msgstr ""
-"Javítás: Az L1/2/3 CPU gyorsítótár információ hiányzik, amikor a NUMA nincs "
-"engedélyezve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:161
-msgid "Fix Virtualization reported as Unknown under certain circumstances"
-msgstr ""
-"Javítás: Virtuálizáció \"Ismeretlen\" -ként jelenik meg bizonyos körülmények "
-"között"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:162
-msgid "Fix a Gatherer crash on older CPUs"
-msgstr "Javítás: A gyűjtő összeomlása régebbi CPU-kon"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:164
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:182
-msgid "A lot of new translations and fixes to existing ones"
-msgstr "Rengeteg új fordítás és javítás a meglévőkhöz"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:172
-msgid "Improve memory composition graph"
-msgstr "Memóriahasználati grafika fejlesztése"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:173
-msgid "Add GPU usage column in the Apps tab"
-msgstr "GPU használat oszlop hozzáadása az alkalmazások fülön"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:174
-msgid "Reduce memory usage and fix a memory leak in the main app"
-msgstr ""
-"Csökkentett memóriahasználat és memóriaszivárgás javítása a fő alkalmazásban"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:178
-msgid ""
-"Fix a crash at start-up when flatpak data is stored in a path with spaces"
-msgstr ""
-"Javítva: Lefagyás induláskor, ha a flatpak adatok olyan elérési úton vannak "
-"tárolva, amelyben szóközök vannak"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:179
-msgid "Fix incorrect base frequency in AMD CPUs"
-msgstr "Javítás: Helytelen alapfrekvencia az AMD CPU-knál"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:180
-msgid "Fix missing video encode/decode information in the GPU tab"
-msgstr "Javítás: Hiányzó videókódolási/-dekódolási információk a GPU fülön"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:190
-msgid ""
-"Add an option, to the context menu, to show kernel times, in the CPU graphs"
-msgstr ""
-"Új opció a kontextusmenüben: A kernel-idők megjelenítése a CPU grafikonokon"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:191
-msgid "Add CPU temperature, where possible"
-msgstr "CPU hőmérsékletet mutatása ha lehetséges"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:192
-msgid ""
-"Implement smarter rounding and display precision of values throughout the "
-"app by QwertyChouskie"
-msgstr ""
-"QwertyChouskie által beépített intelligensebb kerekítés és érték "
-"megjelenítési pontosság az alkalmazásban"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:193
-msgid ""
-"Use metainfo instead of appdata for application metadata by David Guglielmi"
-msgstr ""
-"Metainfót használ az alkalmazás az appdata helyett az alkalmazások "
-"metaadataira - David Guglielmi által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:197
-msgid ""
-"Fixed a regression where natively installed browsers were not showing up in "
-"the apps list on Fedora"
-msgstr ""
-"Böngészők melyek natív csomagként vannak telepítve nem jelentek meg az "
-"alkalmazások listájában Fedora alatt"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:198
-msgid ""
-"Fixed a regression where Flatpak apps were not showing up in the apps list "
-"on ArchLinux Plasma"
-msgstr ""
-"Flatpak csomagként telepített alkalmazások nem jelentek meg az Alkalmazások "
-"listájában (ArchLinux Plasma)"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:199
-msgid ""
-"Fixed a bug where the Maps app desktop file wasn't being parsed correctly"
-msgstr ""
-"Javítottam egy hibát, ahol a Térképek alkalmazás asztali fájlja nem volt "
-"helyesen elemzve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:200
-msgid ""
-"Moved some performance related logs to g_debug to prevent spamming of system "
-"logs"
-msgstr ""
-"Áthelyeztem néhány teljesítményre vonatkozó naplóbejegyzést a g_debug-hoz, "
-"hogy megakadályozzam a rendszer naplóinak túlzsúfoltságát"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:202
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:245
-msgid "Translations:"
-msgstr "Fordítások:"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:204
-msgid "New translation to Korean by Seong-ho Cho"
-msgstr "Új fordítás koreai nyelvre Cho Seong-ho által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:205
-msgid "New translation to Dutch by Gert"
-msgstr "Új fordítás holland nyelvre Gert által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:206
-msgid "New translation to Polish by _Ghost_"
-msgstr "Új fordítás lengyel nyelvre a _Ghost_ által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:207
-msgid "New translation to Italian by beppeilgommista"
-msgstr "Új fordítás olasz nyelvre a beppeilgommista által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:208
-msgid "New translation to Portuguese (Brazil) by Gérson da Fonseca Henzel"
-msgstr "Fordítási javítások portugál nyelven Gérson da Fonseca Henzel által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:209
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:254
-msgid "Updated Spanish translation"
-msgstr "Spanyol fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:210
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:213
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:258
-msgid "Updated Finnish translation"
-msgstr "Finn fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:211
-msgid "Updated Russian translation"
-msgstr "Orosz fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:212
-msgid "Updated Chinese (Simplified) translation"
-msgstr "Kínai fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:214
-msgid "Updated Greek translation"
-msgstr "Görög fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:215
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:257
-msgid "Updated German translation"
-msgstr "Német fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:223
-msgid ""
-"Hotfix release to fix a bug that caused the app to not display any "
-"information for some users"
-msgstr ""
-"Hotfix egy hiba javítására, ami miatt az alkalmazás bizonyos felhasználóknál "
-"nem jelenített meg semmi információt"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:232
-msgid "New app icon by QwertyChouskie"
-msgstr "Új alkalmazásikon QwertyChouskie által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:233
-msgid "Add ability to stop and force stop apps and processes"
-msgstr ""
-"Új lehetőség az alkalmazások és folyamatok leállítására és "
-"kényszerleállítására"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:234
-msgid ""
-"Running apps are now shown more reliably, and should reflect most if not all "
-"running apps"
-msgstr ""
-"A futó alkalmazások most megbízhatóbban jelennek meg, és legtöbb esetben "
-"minden futó alkalmazást mutat"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:235
-msgid "Experimental support for Snap apps in the running apps list"
-msgstr ""
-"Kísérleti támogatás a Snap alkalmazásokhoz a futó alkalmazások listájában"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:236
-msgid ""
-"Added a setting to show resource consumption individually per process or "
-"cumulated with their descendants"
-msgstr ""
-"Hozzáadtam egy beállítást, hogy az erőforrásfogyasztást egyesével mutassa-e "
-"meg folyamatonként, vagy összegezze-e őket leszármazottaikkal együtt"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:239
-msgid ""
-"Added a setting to enable persistent sorting in the apps and processes list"
-msgstr ""
-"Hozzáadtam egy beállítást, hogy engedélyezze az állandó rendezést az "
-"alkalmazások és folyamatok listájában"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:240
-msgid ""
-"Data gathering is now more versatile and will permit new features to be "
-"added quicker and easier"
-msgstr ""
-"Az adatgyűjtés most sokoldalúbb, és lehetővé teszi az új funkciók gyorsabb "
-"és könnyebb hozzáadását"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:243
-msgid "App can now be built from GNOME Builder"
-msgstr "Az alkalmazást most már lehet a GNOME Builder-el építeni"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:247
-msgid "New translation to Norwegian Bokmål by Allan Nordhøy"
-msgstr "Új fordítás norvég bokmål nyelvre Allan Nordhøy által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:248
-msgid "New translation to Russian by Ivan Maslikhov"
-msgstr "Új fordítás orosz nyelvre Ivan Maslikhov által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:249
-msgid "New translation to Slovak by mthw0"
-msgstr "Új fordítás szlovák nyelvre mthw0 által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:250
-msgid "New translation to Greek by Yiannis Ioannides"
-msgstr "Új fordítás görög nyelvre Yiannis Ioannides által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:251
-msgid "New translation to Chinese (Simplified) by foxer NS"
-msgstr "Új fordítás egyszerűsített kínai nyelvre foxer NS által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:252
-msgid "New translation to French by Link Mauve"
-msgstr "Új fordítás francia nyelvre Link Mauve által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:253
-msgid "New translation to Hungarian by Kovács Bálint Hunor"
-msgstr "Új fordítás magyar nyelvre Kovács Bálint Hunor által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:255
-msgid "Updated Czech translation"
-msgstr "Cseh fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:256
-msgid "Updated Portuguese translation"
-msgstr "Portugál fordítás frissítve"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:259
-msgid "Fixes for Chinese translations by foxer NS"
-msgstr "Javítások a kínai fordításokhoz foxer NS által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:267
-msgid "Add Spanish translation by Óscar Fernández Díaz"
-msgstr "Spanyol fordítás hozzáadása: Óscar Fernández Díaz"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:268
-msgid ""
-"The memory tab now shows configured memory speed instead of the maximum "
-"supported by the modules"
-msgstr ""
-"A memória fül most a modulok által támogatott maximális sebesség helyett a "
-"konfigurált memóriasebességet mutatja"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:271
-msgid "Add German translation by TecCheck"
-msgstr "Német fordítás hozzáadása: TecCheck"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:272
-msgid ""
-"When a process uses large amounts of CPU or RAM it is now highlighted in the "
-"Apps and Processes list"
-msgstr ""
-"Amikor egy folyamat nagy mennyiségű CPU-t vagy RAM-ot használ, most "
-"kiemelésre kerül az Alkalmazások és Folyamatok listájában"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:275
-msgid "Add initial support for building for ARM64"
-msgstr "Kezdeti támogatás hozzáadása az ARM64-hez"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:276
-msgid ""
-"Take into account multiple CPU cores and cache sharing when calculating "
-"cache sizes"
-msgstr ""
-"Vegye figyelembe a több CPU-magot és a gyorsítótár megosztását a gyorsítótár "
-"méretének kiszámításakor"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:277
-msgid ""
-"Fix browsers, installed as native packages, not showing up in the Apps list"
-msgstr ""
-"A böngészők javítása, amelyek natív csomagokként vannak telepítve, és nem "
-"jelennek meg az Alkalmazások listájában"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:278
-msgid "Translation updates for Traditional Chinese by Peter Dave Hello"
-msgstr "Hagyományos kínai fordítás frissítések: Peter Dave Hello"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:286
-msgid "Translation fixes for Portuguese by Rafael Fontenelle"
-msgstr "Fordítási javítások portugál nyelven Rafael Fontenelle által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:287
-msgid ""
-"Only show a link-local IPv6 address if no other IPv6 exists by Maximilian"
-msgstr ""
-"Csak akkor jelenjen meg egy helyi hálózati IPv6-cím, ha más IPv6 nincs jelen "
-"Maximilian által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:288
-msgid "Add Traditional Chinese locale by Peter Dave Hello"
-msgstr "Hagyományos kínai nyelvi terület hozzáadása Peter Dave Hello által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:289
-msgid "Add category for application menu by Renner0E"
-msgstr "Kategória hozzáadása az alkalmazás menüjéhez Renner0E által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:290
-msgid ""
-"Fix a parsing error when parsing the output of `dmidecode` that lead to a "
-"panic"
-msgstr ""
-"Hibajavítás a dmidecode kimenetének elemzésekor fellépő értelmezési hiba "
-"miatt, amely pánikot okozott"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:291
-msgid ""
-"Use a fallback if `/sys/devices/system/cpu/cpu0/cpufreq/base_frequency` does "
-"not exist, when getting CPU base speed information"
-msgstr ""
-"Használjon tartalékot, ha a `/sys/devices/system/cpu/cpu0/cpufreq/"
-"base_frequency` nem létezik, amikor a CPU alapsebesség információt szerzi be"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:294
-msgid "Update GPU tab UI to be more adaptive for smaller resolutions"
-msgstr ""
-"Frissítse a GPU fül felhasználói felületét, hogy alkalmazkodjon jobban "
-"kisebb felbontásokhoz"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:302
-msgid "Added Czech translation by ondra05"
-msgstr "Cseh fordítás hozzáadva ondra05 által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:303
-msgid "Added Portuguese translation by Rilson Joás"
-msgstr "Portugál fordítás hozzáadva Rilson Joás által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:304
-msgid ""
-"Add keywords to desktop file to improve search function of desktop "
-"environments by Hannes Kuchelmeister"
-msgstr ""
-"Kulcsszavak hozzáadva az asztali fájlhoz a munkakörnyezetek keresési "
-"funkciójának javítása érdekében, Hannes Kuchelmeiste által"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:307
-msgid "Fixed a bug where the app and process list was empty for some users"
-msgstr ""
-"Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok listája "
-"néhány felhasználó esetében üres volt"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:315
-msgid "Fix a crash that occurs when the system is under heavy load"
-msgstr ""
-"Hibajavítás a rendszer összeomlásának kijavítására, amely akkor fordul elő, "
-"amikor a rendszer nagy terhelés alatt áll"
-
-#: data/io.missioncenter.MissionCenter.metainfo.xml.in:323
-msgid "First official release!"
-msgstr "Első hivatalos kiadás!"
-
 #: data/io.missioncenter.MissionCenter.gschema.xml:31
 msgid "Which page is shown on application startup"
 msgstr "Melyik oldal jelenik meg az alkalmazás indításakor"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:37
+#: data/io.missioncenter.MissionCenter.gschema.xml:38
+msgid "DEPRECATED! NO LONGER IN USE!"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:44
 msgid ""
 "How fast should the data be refreshed and the UI updated (in increments of "
 "50ms)"
@@ -666,152 +173,241 @@ msgstr ""
 "Milyen gyorsan legyen frissítve az adat és a felhasználói felületet (50ms "
 "lépésekben)"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:43
+#: data/io.missioncenter.MissionCenter.gschema.xml:50
 msgid "How many points should be displayed on each chart?"
 msgstr "Hány pont legyen megjelenítve diagramonként?"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:48
-#: resources/ui/preferences/page.blp:47
+#: data/io.missioncenter.MissionCenter.gschema.xml:55
+#: resources/ui/preferences/page.blp:55
+msgid "Whether or not to use bits (default) or Bytes for network speed"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:60
+msgid ""
+"Whether to set graph max to interface max (false) or the max observed (true)"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:65
+#: resources/ui/preferences/page.blp:99
 msgid "Parent and child process stats are shown individually or merged upwards"
 msgstr ""
 "A szülői és a gyermek folyamatok statisztikái külön-külön vagy felfelé "
 "összevontan jelennek meg"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:53
+#: data/io.missioncenter.MissionCenter.gschema.xml:70
 msgid "Column sorting is persisted across app restarts"
 msgstr "Az oszlopok rendezése az alkalmazás újraindításakor is fennmarad"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:58
-#: resources/ui/preferences/page.blp:57
+#: data/io.missioncenter.MissionCenter.gschema.xml:75
+#: resources/ui/preferences/page.blp:109
 msgid ""
 "Show CPU usage for Apps and Processes scaled to the number of available cores"
 msgstr ""
 "Az alkalmazások és folyamatok CPU-használatának megjelenítése, a "
 "rendelkezésre álló magok számához igazítva"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:63
+#: data/io.missioncenter.MissionCenter.gschema.xml:80
 msgid "The column id by which the Apps page view is sorted"
 msgstr ""
 "Az oszlop azonosítója, amely szerint az Alkalmazások oldal nézete rendezve "
 "van"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:68
+#: data/io.missioncenter.MissionCenter.gschema.xml:85
 msgid "The sorting direction of the Apps page view"
 msgstr "Az Alkalmazások oldal nézetének rendezési iránya"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:74
+#: data/io.missioncenter.MissionCenter.gschema.xml:92
 msgid "Which graph is shown on the CPU performance page"
 msgstr "Melyik grafikon jelenik meg a CPU-teljesítmény oldalon"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:79
+#: data/io.missioncenter.MissionCenter.gschema.xml:97
 msgid "Show kernel times in the CPU graphs"
 msgstr "Kernel idők mutatása a CPU grafikonon"
 
-#: data/io.missioncenter.MissionCenter.gschema.xml:84
+#: data/io.missioncenter.MissionCenter.gschema.xml:102
 msgid "Which page is shown on application startup, in the performance tab"
 msgstr ""
 "Melyik oldal jelenik meg az alkalmazás indításakor, a teljesítmény lapon"
 
-#: resources/ui/performance_page/cpu.blp:44 src/apps_page/mod.rs:1348
-#: src/performance_page/mod.rs:384
+#: data/io.missioncenter.MissionCenter.gschema.xml:108
+msgid "Should performance graphs be smooth or jagged"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:113
+#: resources/ui/preferences/page.blp:65
+msgid "Show CPU information by default"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:118
+#: resources/ui/preferences/page.blp:70
+#, fuzzy
+msgid "Show memory information by default"
+msgstr "A további memóriainformációk lekérése sikertelen volt"
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:123
+#: resources/ui/preferences/page.blp:75
+msgid "Show disk information by default"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:128
+#: resources/ui/preferences/page.blp:80
+msgid "Show network information by default"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:133
+#: resources/ui/preferences/page.blp:85
+msgid "Show GPU information by default"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:138
+#: resources/ui/preferences/page.blp:90
+msgid "Show fan information by default"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:143
+#, fuzzy
+msgid "Show the mem composition widget"
+msgstr "Memóriahasználati grafika fejlesztése"
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:148
+msgid "Show the swap graph"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:153
+msgid "Show the gpu encode-decode graph graph"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:158
+msgid "The ordering of entries in the application sidebar"
+msgstr ""
+
+#: data/io.missioncenter.MissionCenter.gschema.xml:163
+msgid "Graphs that should be hidden in the application sidebar"
+msgstr ""
+
+#: resources/ui/performance_page/cpu.blp:44 src/apps_page/mod.rs:1367
+#: src/performance_page/mod.rs:969
 msgid "CPU"
 msgstr "Processzor"
 
-#: resources/ui/performance_page/cpu.blp:76
-#: resources/ui/performance_page/cpu_details.blp:46
-#: resources/ui/performance_page/gpu_details.blp:44
-msgid "Utilization"
-msgstr "Kihasználtság"
+#: resources/ui/performance_page/cpu.blp:62
+#: resources/ui/performance_page/gpu.blp:71
+#, fuzzy
+msgid "Utilization over "
+msgstr "Kihasználtság {}{}"
 
-#: resources/ui/performance_page/cpu.blp:86
+#: resources/ui/performance_page/cpu.blp:77
+#: resources/ui/performance_page/gpu.blp:85
+#: resources/ui/performance_page/gpu.blp:130
 msgid "100%"
 msgstr "100%"
 
-#: resources/ui/performance_page/cpu.blp:142
+#: resources/ui/performance_page/cpu.blp:105
 msgid "Change G_raph To"
 msgstr "G_ráf változtatása"
 
-#: resources/ui/performance_page/cpu.blp:145
+#: resources/ui/performance_page/cpu.blp:108
 msgid "Overall U_tilization"
 msgstr "Teljes K_ihasználtság"
 
-#: resources/ui/performance_page/cpu.blp:150
+#: resources/ui/performance_page/cpu.blp:113
 msgid "Logical _Processors"
 msgstr "Logikai _processzorok"
 
-#: resources/ui/performance_page/cpu.blp:156
+#: resources/ui/performance_page/cpu.blp:119
 msgid "Show Kernel Times"
 msgstr "Kernel idő mutatása"
 
-#: resources/ui/performance_page/cpu.blp:163
-#: resources/ui/performance_page/disk.blp:178
-#: resources/ui/performance_page/gpu.blp:219
-#: resources/ui/performance_page/memory.blp:152
-#: resources/ui/performance_page/network.blp:121
+#: resources/ui/performance_page/cpu.blp:126
+#: resources/ui/performance_page/disk.blp:147
+#: resources/ui/performance_page/fan.blp:152
+#: resources/ui/performance_page/gpu.blp:206
+#: resources/ui/performance_page/memory.blp:196
+#: resources/ui/performance_page/network.blp:105
 msgid "Graph _Summary View"
 msgstr "Grafikon _összegző nézet"
 
-#: resources/ui/performance_page/cpu.blp:168
-#: resources/ui/performance_page/disk.blp:183
-#: resources/ui/performance_page/gpu.blp:224
-#: resources/ui/performance_page/memory.blp:157
-#: resources/ui/performance_page/network.blp:126
+#: resources/ui/performance_page/cpu.blp:131
+#: resources/ui/performance_page/disk.blp:152
+#: resources/ui/performance_page/fan.blp:157
+#: resources/ui/performance_page/gpu.blp:211
+#: resources/ui/performance_page/memory.blp:201
+#: resources/ui/performance_page/network.blp:110
 msgid "_View"
 msgstr "_Nézet"
 
-#: resources/ui/performance_page/cpu.blp:171
-#: resources/ui/performance_page/disk.blp:186
-#: resources/ui/performance_page/gpu.blp:227
-#: resources/ui/performance_page/memory.blp:160
-#: resources/ui/performance_page/network.blp:129
+#: resources/ui/performance_page/cpu.blp:134
+#: resources/ui/performance_page/disk.blp:155
+#: resources/ui/performance_page/fan.blp:160
+#: resources/ui/performance_page/gpu.blp:214
+#: resources/ui/performance_page/memory.blp:204
+#: resources/ui/performance_page/network.blp:113
 msgid "CP_U"
 msgstr "Pr_ocesszor"
 
-#: resources/ui/performance_page/cpu.blp:176
-#: resources/ui/performance_page/disk.blp:191
-#: resources/ui/performance_page/gpu.blp:232
-#: resources/ui/performance_page/memory.blp:165
-#: resources/ui/performance_page/network.blp:134
+#: resources/ui/performance_page/cpu.blp:139
+#: resources/ui/performance_page/disk.blp:160
+#: resources/ui/performance_page/fan.blp:165
+#: resources/ui/performance_page/gpu.blp:219
+#: resources/ui/performance_page/memory.blp:209
+#: resources/ui/performance_page/network.blp:118
 msgid "_Memory"
 msgstr "_Memória"
 
-#: resources/ui/performance_page/cpu.blp:181
-#: resources/ui/performance_page/disk.blp:196
-#: resources/ui/performance_page/gpu.blp:237
-#: resources/ui/performance_page/memory.blp:170
-#: resources/ui/performance_page/network.blp:139
-msgid "_Disk"
-msgstr "_Lemez"
+#: resources/ui/performance_page/cpu.blp:144
+#: resources/ui/performance_page/disk.blp:165
+#: resources/ui/performance_page/fan.blp:170
+#: resources/ui/performance_page/gpu.blp:224
+#: resources/ui/performance_page/memory.blp:214
+#: resources/ui/performance_page/network.blp:123
+msgid "_Drive"
+msgstr ""
 
-#: resources/ui/performance_page/cpu.blp:186
-#: resources/ui/performance_page/disk.blp:201
-#: resources/ui/performance_page/gpu.blp:242
-#: resources/ui/performance_page/memory.blp:175
-#: resources/ui/performance_page/network.blp:144
+#: resources/ui/performance_page/cpu.blp:149
+#: resources/ui/performance_page/disk.blp:170
+#: resources/ui/performance_page/fan.blp:175
+#: resources/ui/performance_page/gpu.blp:229
+#: resources/ui/performance_page/memory.blp:219
+#: resources/ui/performance_page/network.blp:128
 msgid "_Network"
 msgstr "_Hálózat"
 
-#: resources/ui/performance_page/cpu.blp:191
-#: resources/ui/performance_page/disk.blp:206
-#: resources/ui/performance_page/gpu.blp:247
-#: resources/ui/performance_page/memory.blp:180
-#: resources/ui/performance_page/network.blp:149
+#: resources/ui/performance_page/cpu.blp:154
+#: resources/ui/performance_page/disk.blp:175
+#: resources/ui/performance_page/fan.blp:180
+#: resources/ui/performance_page/gpu.blp:234
+#: resources/ui/performance_page/memory.blp:224
+#: resources/ui/performance_page/network.blp:133
 msgid "_GPU"
 msgstr "_Videókártya"
 
-#: resources/ui/performance_page/cpu.blp:199
-#: resources/ui/performance_page/disk.blp:214
-#: resources/ui/performance_page/gpu.blp:255
-#: resources/ui/performance_page/memory.blp:188
-#: resources/ui/performance_page/network.blp:162
+#: resources/ui/performance_page/cpu.blp:159
+#: resources/ui/performance_page/disk.blp:180
+#: resources/ui/performance_page/fan.blp:185
+#: resources/ui/performance_page/gpu.blp:239
+#: resources/ui/performance_page/memory.blp:229
+#: resources/ui/performance_page/network.blp:138
+msgid "_Fan"
+msgstr ""
+
+#: resources/ui/performance_page/cpu.blp:167
+#: resources/ui/performance_page/disk.blp:188
+#: resources/ui/performance_page/gpu.blp:247
+#: resources/ui/performance_page/memory.blp:237
+#: resources/ui/performance_page/network.blp:151
 msgid "_Copy"
 msgstr "_Másolás"
+
+#: resources/ui/performance_page/cpu_details.blp:46
+#: resources/ui/performance_page/gpu_details.blp:43
+msgid "Utilization"
+msgstr "Kihasználtság"
 
 #: resources/ui/performance_page/cpu_details.blp:68
 msgid "Speed"
 msgstr "Sebesség"
 
-#: resources/ui/performance_page/cpu_details.blp:95 src/apps_page/mod.rs:549
+#: resources/ui/performance_page/cpu_details.blp:95 src/apps_page/mod.rs:569
 msgid "Processes"
 msgstr "Folyamatok"
 
@@ -859,14 +455,33 @@ msgstr "L2 gyorsítótár:"
 msgid "L3 cache:"
 msgstr "L3 gyorsítótár:"
 
-#: resources/ui/performance_page/disk.blp:64
+#: resources/ui/performance_page/cpu_details.blp:297
+msgid "Cpufreq driver:"
+msgstr ""
+
+#: resources/ui/performance_page/cpu_details.blp:311
+msgid "Cpufreq governor:"
+msgstr ""
+
+#: resources/ui/performance_page/cpu_details.blp:325
+#, fuzzy
+msgid "Power preference:"
+msgstr "_Beállítások"
+
+#: resources/ui/performance_page/disk.blp:63
+#, fuzzy
+msgid "Active time over "
+msgstr "Aktív idő"
+
+#: resources/ui/performance_page/disk.blp:104
+#: resources/ui/performance_page/network.blp:60
+#, fuzzy
+msgid "Throughput over "
+msgstr "Áteresztő képesség"
+
 #: resources/ui/performance_page/disk_details.blp:46
 msgid "Active time"
 msgstr "Aktív idő"
-
-#: resources/ui/performance_page/disk.blp:123
-msgid "Disk transfer rate"
-msgstr "Lemezátviteli sebesség"
 
 #: resources/ui/performance_page/disk_details.blp:69
 msgid "Avg. response time"
@@ -893,258 +508,475 @@ msgid "System disk:"
 msgstr "Rendszerlemez:"
 
 #: resources/ui/performance_page/disk_details.blp:204
-#: resources/ui/performance_page/memory_details.blp:237
+#: resources/ui/performance_page/memory_details.blp:260
 msgid "Type:"
 msgstr "Típus:"
 
-#: resources/ui/performance_page/gpu.blp:71
-msgid "Overall utilization"
-msgstr "Teljes kihasználtság"
-
-#: resources/ui/performance_page/gpu.blp:111
-msgid "Video encode"
-msgstr "Videókódolás"
-
-#: resources/ui/performance_page/gpu.blp:147
-msgid "Video decode"
-msgstr "Videó dekódolás"
-
-#: resources/ui/performance_page/gpu.blp:186
-#: resources/ui/performance_page/gpu_details.blp:157
-#: resources/ui/performance_page/memory.blp:65
-msgid "Memory usage"
+#: resources/ui/performance_page/fan.blp:67
+#, fuzzy
+msgid "Fan speed over "
 msgstr "Memóriahasználat"
 
-#: resources/ui/performance_page/gpu_details.blp:67
+#: resources/ui/performance_page/fan.blp:108
+#, fuzzy
+msgid "Temperature over "
+msgstr "Hőmérséklet"
+
+#: resources/ui/performance_page/fan_details.blp:51
+#, fuzzy
+msgid "Fan Speed"
+msgstr "Sebesség"
+
+#: resources/ui/performance_page/fan_details.blp:82
+msgid "PWM %"
+msgstr ""
+
+#: resources/ui/performance_page/fan_details.blp:108
+#, fuzzy
+msgid "Current Temperature"
+msgstr "Hőmérséklet"
+
+#: resources/ui/performance_page/gpu.blp:114
+#, fuzzy
+msgid "Video encode/decode utilization over "
+msgstr "Videókódolás"
+
+#: resources/ui/performance_page/gpu.blp:156
+#: resources/ui/performance_page/memory.blp:71
+#, fuzzy
+msgid "Memory usage over "
+msgstr "Memóriahasználat"
+
+#: resources/ui/performance_page/gpu.blp:199
+msgid "Show Encode/Decode Usage"
+msgstr ""
+
+#: resources/ui/performance_page/gpu_details.blp:65
 msgid "Clock Speed"
 msgstr "Órajel sebesség"
 
-#: resources/ui/performance_page/gpu_details.blp:112
+#: resources/ui/performance_page/gpu_details.blp:110
 msgid "Power draw"
 msgstr "Teljesítményfogyasztás"
 
-#: resources/ui/performance_page/gpu_details.blp:202
+#: resources/ui/performance_page/gpu_details.blp:154
+msgid "Memory usage"
+msgstr "Memóriahasználat"
+
+#: resources/ui/performance_page/gpu_details.blp:208
+#, fuzzy
+msgid "GTT usage"
+msgstr "GPU használat"
+
+#: resources/ui/performance_page/gpu_details.blp:254
 msgid "Memory speed"
 msgstr "Memóriasebesség"
 
-#: resources/ui/performance_page/gpu_details.blp:247
+#: resources/ui/performance_page/gpu_details.blp:310
+#, fuzzy
+msgid "Video encode"
+msgstr "Videókódolás/dekódolás"
+
+#: resources/ui/performance_page/gpu_details.blp:343
+#, fuzzy
+msgid "Video decode"
+msgstr "Videókódolás/dekódolás"
+
+#: resources/ui/performance_page/gpu_details.blp:368
 msgid "Temperature"
 msgstr "Hőmérséklet"
 
-#: resources/ui/performance_page/gpu_details.blp:272
+#: resources/ui/performance_page/gpu_details.blp:393
 msgid "OpenGL version:"
 msgstr "OpenGL verzió:"
 
-#: resources/ui/performance_page/gpu_details.blp:286
+#: resources/ui/performance_page/gpu_details.blp:407
 msgid "Vulkan version:"
 msgstr "Vulkan verzió:"
 
-#: resources/ui/performance_page/gpu_details.blp:300
+#: resources/ui/performance_page/gpu_details.blp:421
 msgid "PCI Express speed:"
 msgstr "PCI Express sebesség:"
 
-#: resources/ui/performance_page/gpu_details.blp:314
+#: resources/ui/performance_page/gpu_details.blp:435
 msgid "PCI bus address:"
 msgstr "PCI busz cím:"
 
-#: resources/ui/performance_page/memory.blp:44 src/apps_page/mod.rs:1354
-#: src/performance_page/mod.rs:452
+#: resources/ui/performance_page/memory.blp:40 src/apps_page/mod.rs:1373
+#: src/performance_page/mod.rs:1026
 msgid "Memory"
 msgstr "Memória"
 
-#: resources/ui/performance_page/memory.blp:126
+#: resources/ui/performance_page/memory.blp:115
+#, fuzzy
+msgid "Swap usage over "
+msgstr "Memóriahasználat"
+
+#: resources/ui/performance_page/memory.blp:158
 msgid "Memory composition"
 msgstr "Memória összetétele"
 
-#: resources/ui/performance_page/memory_details.blp:47
+#: resources/ui/performance_page/memory.blp:185
+#, fuzzy
+msgid "Show Memory Composition"
+msgstr "Memória összetétele"
+
+#: resources/ui/performance_page/memory.blp:189
+msgid "Show Swap Usage"
+msgstr ""
+
+#: resources/ui/performance_page/memory_details.blp:57
 msgid "In use"
 msgstr "Használatban"
 
-#: resources/ui/performance_page/memory_details.blp:70
+#: resources/ui/performance_page/memory_details.blp:82
 msgid "Available"
 msgstr "Elérhető"
 
-#: resources/ui/performance_page/memory_details.blp:98
+#: resources/ui/performance_page/memory_details.blp:119
 msgid "Committed"
 msgstr "Elkötelezett"
 
-#: resources/ui/performance_page/memory_details.blp:121
+#: resources/ui/performance_page/memory_details.blp:143
 msgid "Cached"
 msgstr "Gyorsítótárazott"
-
-#: resources/ui/performance_page/memory_details.blp:148
-msgid "Swap available"
-msgstr "Elérhető swap"
 
 #: resources/ui/performance_page/memory_details.blp:171
 msgid "Swap used"
 msgstr "Használt swap"
 
-#: resources/ui/performance_page/memory_details.blp:195
+#: resources/ui/performance_page/memory_details.blp:194
+msgid "Swap available"
+msgstr "Elérhető swap"
+
+#: resources/ui/performance_page/memory_details.blp:218
 msgid "Speed:"
 msgstr "Sebesség:"
 
-#: resources/ui/performance_page/memory_details.blp:209
+#: resources/ui/performance_page/memory_details.blp:232
 msgid "Slots used:"
 msgstr "Használt helyek:"
 
-#: resources/ui/performance_page/memory_details.blp:223
+#: resources/ui/performance_page/memory_details.blp:246
 msgid "Form factor:"
 msgstr "Formafaktor:"
 
-#: resources/ui/performance_page/network.blp:62
-msgid "Throughput"
-msgstr "Áteresztő képesség"
-
-#: resources/ui/performance_page/network.blp:155
+#: resources/ui/performance_page/network.blp:144
 msgid "Network Se_ttings"
 msgstr "Hálózati be_állítások"
 
-#: resources/ui/performance_page/network_details.blp:51
+#: resources/ui/performance_page/network_details.blp:55
 msgid "Receive"
 msgstr "Fogadott adat"
 
-#: resources/ui/performance_page/network_details.blp:83
+#: resources/ui/performance_page/network_details.blp:78
+msgid "Total Recieved"
+msgstr ""
+
+#: resources/ui/performance_page/network_details.blp:114
 msgid "Send"
 msgstr "Küldött adat"
 
-#: resources/ui/performance_page/network_details.blp:107
+#: resources/ui/performance_page/network_details.blp:137
+msgid "Total Sent"
+msgstr ""
+
+#: resources/ui/performance_page/network_details.blp:162
 msgid "Interface name:"
 msgstr "Interfész neve:"
 
-#: resources/ui/performance_page/network_details.blp:121
+#: resources/ui/performance_page/network_details.blp:176
 msgid "Connection type:"
 msgstr "Kapcsolat típusa:"
 
-#: resources/ui/performance_page/network_details.blp:136
+#: resources/ui/performance_page/network_details.blp:191
 msgid "SSID:"
 msgstr "SSID:"
 
-#: resources/ui/performance_page/network_details.blp:151
+#: resources/ui/performance_page/network_details.blp:206
 msgid "Signal strength:"
 msgstr "Jel erőssége:"
 
-#: resources/ui/performance_page/network_details.blp:166
+#: resources/ui/performance_page/network_details.blp:221
 msgid "Maximum Bitrate:"
 msgstr "Maximális bitráta:"
 
-#: resources/ui/performance_page/network_details.blp:181
+#: resources/ui/performance_page/network_details.blp:236
 msgid "Frequency:"
 msgstr "Frekvencia:"
 
-#: resources/ui/performance_page/network_details.blp:195
+#: resources/ui/performance_page/network_details.blp:250
 msgid "Hardware address:"
 msgstr "Hardver cím:"
 
-#: resources/ui/performance_page/network_details.blp:309
+#: resources/ui/performance_page/network_details.blp:364
 msgid "IPv4 address:"
 msgstr "IPv4 cím:"
 
-#: resources/ui/performance_page/network_details.blp:323
+#: resources/ui/performance_page/network_details.blp:378
 msgid "IPv6 address:"
 msgstr "IPv6 cím:"
 
 #: resources/ui/preferences/page.blp:6
-msgid "General Settings"
+#, fuzzy
+msgid "General"
 msgstr "Általános beállítások"
 
 #: resources/ui/preferences/page.blp:9
 msgid "Update Interval"
 msgstr "Frissítési időköz"
 
-#: resources/ui/preferences/page.blp:26
+#: resources/ui/preferences/page.blp:27
 msgid "Chart Data Points"
 msgstr "Diagram adatpontok"
 
-#: resources/ui/preferences/page.blp:43
-msgid "App Page Settings"
+#: resources/ui/preferences/page.blp:46
+#, fuzzy
+msgid "Performance Page"
+msgstr "Teljesítmény"
+
+#: resources/ui/preferences/page.blp:49
+msgid "Smooth Graphs"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:50
+msgid "Draw graphs as smooth line instead of jagged line"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:54
+msgid "Show Network Speed In Bytes"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:59
+msgid "Scale Network Graphs Dynamically"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:60
+msgid ""
+"Set network graph to scale dynamically with actual usage or with channel max "
+"speed"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:64
+msgid "Show CPU Information"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:69
+#, fuzzy
+msgid "Show Memory Information"
+msgstr "Memória összetétele"
+
+#: resources/ui/preferences/page.blp:74
+msgid "Show Disk Information"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:79
+msgid "Show Network Information"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:84
+msgid "Show GPU Information"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:89
+msgid "Show Fan Information"
+msgstr ""
+
+#: resources/ui/preferences/page.blp:95
+#, fuzzy
+msgid "App Page"
 msgstr "Alkalmazás oldal beállításai"
 
-#: resources/ui/preferences/page.blp:46
+#: resources/ui/preferences/page.blp:98
 msgid "Merge Process Stats"
 msgstr "Egyesítési folyamat statisztikái"
 
-#: resources/ui/preferences/page.blp:51
+#: resources/ui/preferences/page.blp:103
 msgid "Remember Sorting"
 msgstr "Emlékezz a válogatásra"
 
-#: resources/ui/preferences/page.blp:52
+#: resources/ui/preferences/page.blp:104
 msgid "Remember the sorting of the app and process list across app restarts"
 msgstr ""
 "Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok listája "
 "néhány felhasználó esetében üres volt"
 
-#: resources/ui/preferences/page.blp:56
+#: resources/ui/preferences/page.blp:108
 msgid "Scale CPU Usage to Core Count"
 msgstr "A CPU használat skálázza a magok számához"
 
-#: resources/ui/window.blp:43
-msgid "Resources"
-msgstr "Erőforrások"
+#: resources/ui/services_page/details_dialog.blp:33
+msgid "Service Details"
+msgstr ""
 
-#: resources/ui/window.blp:67
-msgid "Toggle Sidebar"
-msgstr "Oldalsáv ki/be kapcsolása"
+#: resources/ui/services_page/details_dialog.blp:54
+msgid "State"
+msgstr ""
 
-#: resources/ui/window.blp:90
-msgid "Type a name or PID to search"
-msgstr "Írjon be egy nevet vagy PID-et a kereséshez"
+#: resources/ui/services_page/details_dialog.blp:55
+msgid "The current state of the service"
+msgstr ""
 
-#: resources/ui/window.blp:146
-msgid "Loading..."
-msgstr "Betöltés..."
-
-#: resources/ui/window.blp:160
-msgid "Performance"
-msgstr "Teljesítmény"
-
-#: resources/ui/window.blp:171 src/apps_page/mod.rs:542
-msgid "Apps"
-msgstr "Alkalmazások"
-
-#: resources/ui/window.blp:190
-msgid "_Preferences"
-msgstr "_Beállítások"
-
-#: resources/ui/window.blp:195
-msgid "_About MissionCenter"
-msgstr "_A Küldetésközpont névjegye"
-
-#: src/apps_page/mod.rs:1336
+#: resources/ui/services_page/details_dialog.blp:127
+#: resources/ui/services_page/page.blp:168 src/apps_page/mod.rs:1355
 msgid "Name"
 msgstr "Név"
 
-#: src/apps_page/mod.rs:1342
+#: resources/ui/services_page/details_dialog.blp:157
+#: resources/ui/services_page/page.blp:223
+msgid "Description"
+msgstr ""
+
+#: resources/ui/services_page/details_dialog.blp:187
+msgid "Status"
+msgstr ""
+
+#: resources/ui/services_page/details_dialog.blp:206
+msgid "Enabled"
+msgstr ""
+
+#: resources/ui/services_page/details_dialog.blp:213
+#, fuzzy
+msgid "Process"
+msgstr "Folyamatok"
+
+#: resources/ui/services_page/details_dialog.blp:214
+msgid "Process and user information"
+msgstr ""
+
+#: resources/ui/services_page/details_dialog.blp:230
+#, fuzzy
+msgid "Process ID"
+msgstr "Folyamatok"
+
+#: resources/ui/services_page/details_dialog.blp:243
+#: resources/ui/services_page/details_dialog.blp:275
+#: resources/ui/services_page/details_dialog.blp:307
+#: src/performance_page/cpu.rs:370 src/performance_page/cpu.rs:385
+#: src/performance_page/cpu.rs:400 src/performance_page/cpu.rs:415
+#: src/performance_page/network.rs:532 src/performance_page/network.rs:547
+#: src/services_page/details_dialog.rs:251
+#: src/services_page/details_dialog.rs:259
+#: src/services_page/details_dialog.rs:267
+msgid "N/A"
+msgstr "N/A (nem alkalmazható)"
+
+#: resources/ui/services_page/details_dialog.blp:262
+msgid "User"
+msgstr ""
+
+#: resources/ui/services_page/details_dialog.blp:294
+msgid "Group"
+msgstr ""
+
+#: resources/ui/services_page/details_dialog.blp:319
+msgid "Logs"
+msgstr ""
+
+#: resources/ui/services_page/page.blp:89
+#: resources/ui/services_page/page.blp:274
+msgid "Start"
+msgstr ""
+
+#: resources/ui/services_page/page.blp:107
+#: resources/ui/services_page/page.blp:279
+msgid "Stop"
+msgstr ""
+
+#: resources/ui/services_page/page.blp:126
+#: resources/ui/services_page/page.blp:284
+msgid "Restart"
+msgstr ""
+
+#: resources/ui/services_page/page.blp:144
+#: resources/ui/services_page/page.blp:291 src/services_page/mod.rs:703
+msgid "Details"
+msgstr ""
+
+#: resources/ui/services_page/page.blp:206 src/apps_page/mod.rs:1361
 msgid "PID"
 msgstr "PID"
 
-#: src/apps_page/mod.rs:1360
-msgid "Disk"
-msgstr "Lemez"
+#: resources/ui/window.blp:49
+msgid "Enable All"
+msgstr ""
 
-#: src/apps_page/mod.rs:1374
+#: resources/ui/window.blp:54
+msgid "Disable All"
+msgstr ""
+
+#: resources/ui/window.blp:59
+msgid "Reset to Default"
+msgstr ""
+
+#: resources/ui/window.blp:64
+msgid "Devices"
+msgstr ""
+
+#: resources/ui/window.blp:70
+#, fuzzy
+msgid "Edit Sidebar"
+msgstr "Oldalsáv ki/be kapcsolása"
+
+#: resources/ui/window.blp:94
+msgid "Toggle Sidebar"
+msgstr "Oldalsáv ki/be kapcsolása"
+
+#: resources/ui/window.blp:117
+msgid "Type a name or PID to search"
+msgstr "Írjon be egy nevet vagy PID-et a kereséshez"
+
+#: resources/ui/window.blp:173
+msgid "Loading..."
+msgstr "Betöltés..."
+
+#: resources/ui/window.blp:187
+msgid "Performance"
+msgstr "Teljesítmény"
+
+#: resources/ui/window.blp:199 src/apps_page/mod.rs:562
+msgid "Apps"
+msgstr "Alkalmazások"
+
+#: resources/ui/window.blp:207
+msgid "Services"
+msgstr ""
+
+#: resources/ui/window.blp:226
+msgid "_Preferences"
+msgstr "_Beállítások"
+
+#: resources/ui/window.blp:231
+msgid "_About MissionCenter"
+msgstr "_A Küldetésközpont névjegye"
+
+#: src/apps_page/mod.rs:1379 src/performance_page/mod.rs:1101
+msgid "Drive"
+msgstr ""
+
+#: src/apps_page/mod.rs:1393
 msgid "GPU Usage"
 msgstr "GPU használat"
 
-#: src/apps_page/mod.rs:1384
+#: src/apps_page/mod.rs:1403
 msgid "GPU Mem"
 msgstr "GPU Memória"
 
 #. ContentType::App
-#: src/apps_page/list_item.rs:366
+#: src/apps_page/list_item.rs:373
 msgid "Stop Application"
 msgstr "Alkalmazás leállítása"
 
-#: src/apps_page/list_item.rs:366
+#: src/apps_page/list_item.rs:373
 msgid "Force Stop Application"
 msgstr "Alkalmazás kényszerített leállítása"
 
 #. ContentType::Process
-#: src/apps_page/list_item.rs:370
+#: src/apps_page/list_item.rs:377
 msgid "Stop Process"
 msgstr "Folyamat leállítása"
 
-#: src/apps_page/list_item.rs:370
+#: src/apps_page/list_item.rs:377
 msgid "Force Stop Process"
 msgstr "Folyamat kényszerített leállítása"
 
@@ -1194,115 +1026,619 @@ msgstr ""
 "újrahasznosítanak, amikor a működési rendszer, a meghajtók vagy az "
 "alkalmazások több memóriára van szükségük"
 
-#: src/performance_page/mod.rs:527 src/performance_page/disk.rs:200
-msgid "Disk {} ({})"
+#: src/performance_page/mod.rs:1097 src/performance_page/disk.rs:278
+#, fuzzy
+msgid "Drive {} ({})"
 msgstr "Lemez {} ({})"
 
-#: src/performance_page/mod.rs:547
+#: src/performance_page/mod.rs:1124
 msgid "HDD"
 msgstr "HDD"
 
-#: src/performance_page/mod.rs:548
+#: src/performance_page/mod.rs:1125
 msgid "SSD"
 msgstr "SSD"
 
-#: src/performance_page/mod.rs:549
+#: src/performance_page/mod.rs:1126
 msgid "NVMe"
 msgstr "NVMe (Non-Volatile Memory)"
 
-#: src/performance_page/mod.rs:550
+#: src/performance_page/mod.rs:1127
 msgid "eMMC"
 msgstr "eMMC (Embedded MultiMediaCard)"
 
-#: src/performance_page/mod.rs:551
+#: src/performance_page/mod.rs:1128
 msgid "iSCSI"
 msgstr "iSCSI (Internet Small Computer Systems Interface)"
 
-#: src/performance_page/mod.rs:552
+#: src/performance_page/mod.rs:1129
 msgid "Optical"
 msgstr "Optikai"
 
-#: src/performance_page/mod.rs:553 src/performance_page/cpu.rs:305
-#: src/performance_page/cpu.rs:329 src/performance_page/cpu.rs:337
-#: src/performance_page/disk.rs:306 src/performance_page/gpu.rs:303
-#: src/performance_page/gpu.rs:420 src/performance_page/memory.rs:264
-#: src/performance_page/memory.rs:498 src/performance_page/network.rs:398
-#: src/performance_page/network.rs:422 src/performance_page/network.rs:432
-#: src/performance_page/network.rs:471 src/performance_page/network.rs:521
-#: src/performance_page/network.rs:557
+#: src/performance_page/mod.rs:1130 src/performance_page/cpu.rs:325
+#: src/performance_page/cpu.rs:349 src/performance_page/cpu.rs:357
+#: src/performance_page/disk.rs:327 src/performance_page/gpu.rs:447
+#: src/performance_page/gpu.rs:587 src/performance_page/memory.rs:479
+#: src/performance_page/memory.rs:777 src/performance_page/network.rs:420
+#: src/performance_page/network.rs:444 src/performance_page/network.rs:458
+#: src/performance_page/network.rs:520 src/performance_page/network.rs:570
+#: src/performance_page/network.rs:606
 msgid "Unknown"
 msgstr "Ismeretlen"
 
-#: src/performance_page/mod.rs:648 src/performance_page/network.rs:337
-msgid "Ethernet"
-msgstr "Vezetékes hálózat"
-
-#: src/performance_page/mod.rs:649 src/performance_page/network.rs:352
-msgid "Wi-Fi"
-msgstr "Wi-Fi"
-
-#: src/performance_page/mod.rs:650 src/performance_page/network.rs:354
-msgid "Other"
-msgstr "Egyéb"
-
-#: src/performance_page/mod.rs:769
+#: src/performance_page/mod.rs:1324
 msgid "GPU {}"
 msgstr "GPU {}"
 
-#: src/performance_page/mod.rs:1078 src/performance_page/mod.rs:1086
-msgid "{}: {} {}bps"
+#: src/performance_page/mod.rs:1326
+#, fuzzy
+msgid "GPU"
+msgstr "_Videókártya"
+
+#: src/performance_page/mod.rs:1416
+msgid "Fan {}"
+msgstr ""
+
+#: src/performance_page/mod.rs:1418
+msgid "Fan"
+msgstr ""
+
+#: src/performance_page/mod.rs:1905 src/performance_page/mod.rs:1914
+#, fuzzy
+msgid "{}: {} {}{}"
 msgstr "{}: {} {}bit per másodperc"
 
-#: src/performance_page/cpu.rs:317 src/performance_page/gpu.rs:315
+#: src/performance_page/cpu.rs:337 src/performance_page/gpu.rs:459
 msgid "Unsupported"
 msgstr "Nem támogatott"
 
-#: src/performance_page/cpu.rs:324 src/performance_page/disk.rs:236
+#: src/performance_page/cpu.rs:344 src/performance_page/disk.rs:247
 msgid "Yes"
 msgstr "Igen"
 
-#: src/performance_page/cpu.rs:326 src/performance_page/disk.rs:238
+#: src/performance_page/cpu.rs:346 src/performance_page/disk.rs:249
 msgid "No"
 msgstr "Nem"
 
-#: src/performance_page/cpu.rs:866
+#: src/performance_page/cpu.rs:976 src/performance_page/gpu.rs:938
+#: src/performance_page/memory.rs:858
 msgid "{} second{}"
 msgstr "{} másodperc{}"
 
-#: src/performance_page/cpu.rs:877
+#: src/performance_page/cpu.rs:987 src/performance_page/gpu.rs:949
+#: src/performance_page/memory.rs:869
 msgid "{} minute{} "
 msgstr "{} perc{} "
 
-#: src/performance_page/cpu.rs:895
-msgid "Utilization Over {}{}"
-msgstr "Kihasználtság {}{}"
+#: src/performance_page/disk.rs:206
+msgid "Disk {} ({})"
+msgstr "Lemez {} ({})"
 
-#: src/performance_page/disk.rs:268
+#: src/performance_page/disk.rs:210 src/performance_page/disk.rs:282
+#, fuzzy
+msgid "Drive ({})"
+msgstr "Lemez {} ({})"
+
+#: src/performance_page/disk.rs:289
 msgid "{} {}{}B/s"
 msgstr "{} {}{}B/s"
 
-#: src/performance_page/gpu.rs:268
-msgid "Video encode/decode"
-msgstr "Videókódolás/dekódolás"
+#: src/performance_page/fan.rs:289
+msgid "{}"
+msgstr ""
 
-#: src/performance_page/memory.rs:491
+#: src/performance_page/fan.rs:292 src/performance_page/fan.rs:395
+msgid "{} RPM"
+msgstr ""
+
+#: src/performance_page/fan.rs:296
+msgid "{}%"
+msgstr ""
+
+#: src/performance_page/fan.rs:329 src/performance_page/fan.rs:384
+msgid "{} °C"
+msgstr ""
+
+#: src/performance_page/memory.rs:770
 msgid "Getting additional memory information failed"
 msgstr "A további memóriainformációk lekérése sikertelen volt"
 
-#: src/performance_page/network.rs:444 src/performance_page/network.rs:451
-#: src/performance_page/network.rs:461
-msgid "{} {}bps"
-msgstr "{} {}bpm"
+#: src/performance_page/network.rs:405 src/performance_page/network.rs:982
+msgid "B/s"
+msgstr ""
 
-#: src/performance_page/network.rs:483 src/performance_page/network.rs:498
-msgid "N/A"
-msgstr "N/A (nem alkalmazható)"
+#: src/performance_page/network.rs:405 src/performance_page/network.rs:984
+msgid "bps"
+msgstr ""
 
-#: src/application.rs:316
+#: src/performance_page/network.rs:498 src/performance_page/network.rs:509
+#, fuzzy
+msgid "{} {}{}B"
+msgstr "{} {}{}B/s"
+
+#: src/services_page/mod.rs:638
+msgid "{} Running Services"
+msgstr ""
+
+#: src/services_page/mod.rs:643
+msgid "{} failed services out of a total of {}"
+msgstr ""
+
+#: src/services_page/details_dialog.rs:236
+#: src/services_page/details_dialog.rs:307
+msgid "Running"
+msgstr ""
+
+#: src/services_page/details_dialog.rs:238
+#: src/services_page/details_dialog.rs:309
+msgid "Failed"
+msgstr ""
+
+#: src/services_page/details_dialog.rs:240
+#: src/services_page/details_dialog.rs:311
+msgid "Stopped"
+msgstr ""
+
+#: src/application.rs:373
 msgid "translator-credits"
 msgstr ""
-"Kovács Bálint-Hunor <kovacsbalinthunor13@gmail.com>, Fionn <mehafo3499@adstam"
-".com>"
+"Kovács Bálint-Hunor <kovacsbalinthunor13@gmail.com>, Fionn "
+"<mehafo3499@adstam.com>"
+
+#: src/main.rs:139
+msgid "_Quit"
+msgstr ""
+
+#~ msgid "{} {}bps"
+#~ msgstr "{} {}bpm"
+
+#~ msgid "Ethernet"
+#~ msgstr "Vezetékes hálózat"
+
+#~ msgid "Wi-Fi"
+#~ msgstr "Wi-Fi"
+
+#~ msgid "Other"
+#~ msgstr "Egyéb"
+
+#, fuzzy
+#~ msgid "{:} minute"
+#~ msgid_plural "{:} minutes"
+#~ msgstr[0] "{} perc{} "
+#~ msgstr[1] "{} perc{} "
+
+#~ msgid "Flatpak first"
+#~ msgstr "Először Flatpak"
+
+#, fuzzy
+#~ msgid "Video decode utilization"
+#~ msgstr "Videó dekódolás"
+
+#~ msgid "_Disk"
+#~ msgstr "_Lemez"
+
+#~ msgid "Disk"
+#~ msgstr "Lemez"
+
+#~ msgid "Display optical device information in the Performance tab"
+#~ msgstr "Optikai eszközinformációinak megjelenítése a Teljesítmény fülön"
+
+#~ msgid "Fix a bug where the Gatherer process would crash at startup"
+#~ msgstr ""
+#~ "Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok "
+#~ "listája néhány felhasználó esetében összeomlott induláskor"
+
+#~ msgid ""
+#~ "Remove the need for admin rights to display extended memory information"
+#~ msgstr ""
+#~ "Az adminisztrátori jogosultságok szükségességének eltávolítása a "
+#~ "kiterjesztett memóriainformációk megjelenítéséhez"
+
+#~ msgid "Remove the requirement for `libgcc_s.so.1` on musl-based systems"
+#~ msgstr ""
+#~ "A `libgcc_s.so.1` szükségességének eltávolítása musl alapú rendszereken"
+
+#~ msgid ""
+#~ "Make the saturation and transfer graphs the same height in the disk usage "
+#~ "panes"
+#~ msgstr ""
+#~ "Az aktivitás és átviteli sebesség grafikonok azonos magasságúvá tétele a "
+#~ "lemezhasználati panelen"
+
+#~ msgid "Translation updates and fixes"
+#~ msgstr "Fordítások frissítése és javítások"
+
+#~ msgid ""
+#~ "Fix a bug where the number of CPUs was incorrectly detected on some "
+#~ "systems (again!)"
+#~ msgstr ""
+#~ "Hiba javítása, amelynek során néhány rendszeren helytelenül észlelték a "
+#~ "CPU-k számát (újra!)"
+
+#~ msgid ""
+#~ "Fix a bug where the number of CPUs was incorrectly detected on some "
+#~ "systems"
+#~ msgstr ""
+#~ "Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok "
+#~ "listája néhány rendszeren helytelen CPU számot érzékelt"
+
+#~ msgid "Add missing icon for the details panel in the Performance tab"
+#~ msgstr "Hiányzó ikon hozzáadása a részletek panelhez a Teljesítmény fülön"
+
+#~ msgid ""
+#~ "Fix a regression in 0.4.0 where GPU data would not be available for some "
+#~ "users"
+#~ msgstr ""
+#~ "0.4.0-ban bekövetkezett változtatás javítása, amelynek következtében "
+#~ "néhány felhasználónál nem volt elérhető videokártya adat"
+
+#~ msgid "Update to GTK 4.12 and libadwaita 1.4"
+#~ msgstr "Frissítés GTK4.12 és libadwaita 1.4-re"
+
+#~ msgid "Redesigned the Performance tab to be adaptive"
+#~ msgstr "A Teljesítmény fül alkalmazkodóvá tétele"
+
+#~ msgid "Early and very minimal Intel GPU support"
+#~ msgstr "Korai és nagyon minimális Intel GPU-támogatás"
+
+#~ msgid "Add GPU memory usage column to the Apps page"
+#~ msgstr "GPU memóriahasználat oszlop hozzáadása az alkalmazások oldalhoz"
+
+#~ msgid "Added an AppImage"
+#~ msgstr "AppImage hozzáadása"
+
+#~ msgid ""
+#~ "The Performance tab now shows what kind of virtualization is enabled on "
+#~ "the host"
+#~ msgstr ""
+#~ "A teljesítmény lap most megmutatja, hogy milyen virtualizációt használ a "
+#~ "gazda rendszer"
+
+#~ msgid "The logical CPU graphs are now arranged in a more pleasing manner"
+#~ msgstr "A logikai CPU grafikonok most kellemesebben vannak elrendezve"
+
+#~ msgid ""
+#~ "The Gatherer was rearchitected and now uses D-Bus for communication with "
+#~ "the main app"
+#~ msgstr ""
+#~ "A Gyűjtő szerkezetét átalakítottuk, most már a fő alkalmazással való "
+#~ "kommunikációhoz a D-Bus-t használja"
+
+#~ msgid "Fixes:"
+#~ msgstr "Javítások:"
+
+#~ msgid "Fix misaligned header in the Apps tab with GTK 4.12"
+#~ msgstr ""
+#~ "Az alkalmazások fülön lévő fejléc hibás elrendezésének javítása GTK 4.12 "
+#~ "alatt"
+
+#~ msgid ""
+#~ "Fix app and Gatherer not starting due to LD_PRELOAD being set in the host "
+#~ "environment"
+#~ msgstr ""
+#~ "Javítva a hiba ami miatt az alkalmazás és a Gyűjtő nem indul el, mert az "
+#~ "LD_PRELOAD be van állítva a gazdagép környezetében"
+
+#~ msgid ""
+#~ "Fix sometimes Apps not showing the accumulated resource usage from all "
+#~ "it's children"
+#~ msgstr ""
+#~ "Javítás: néha az alkalmazások nem mutatják az összes gyermeküktől "
+#~ "származó felhalmozott erőforrás-felhasználást"
+
+#~ msgid ""
+#~ "Fix missing L1/2/3 CPU cache information missing when NUMA is not enabled"
+#~ msgstr ""
+#~ "Javítás: Az L1/2/3 CPU gyorsítótár információ hiányzik, amikor a NUMA "
+#~ "nincs engedélyezve"
+
+#~ msgid "Fix Virtualization reported as Unknown under certain circumstances"
+#~ msgstr ""
+#~ "Javítás: Virtuálizáció \"Ismeretlen\" -ként jelenik meg bizonyos "
+#~ "körülmények között"
+
+#~ msgid "Fix a Gatherer crash on older CPUs"
+#~ msgstr "Javítás: A gyűjtő összeomlása régebbi CPU-kon"
+
+#~ msgid "A lot of new translations and fixes to existing ones"
+#~ msgstr "Rengeteg új fordítás és javítás a meglévőkhöz"
+
+#~ msgid "Add GPU usage column in the Apps tab"
+#~ msgstr "GPU használat oszlop hozzáadása az alkalmazások fülön"
+
+#~ msgid "Reduce memory usage and fix a memory leak in the main app"
+#~ msgstr ""
+#~ "Csökkentett memóriahasználat és memóriaszivárgás javítása a fő "
+#~ "alkalmazásban"
+
+#~ msgid ""
+#~ "Fix a crash at start-up when flatpak data is stored in a path with spaces"
+#~ msgstr ""
+#~ "Javítva: Lefagyás induláskor, ha a flatpak adatok olyan elérési úton "
+#~ "vannak tárolva, amelyben szóközök vannak"
+
+#~ msgid "Fix incorrect base frequency in AMD CPUs"
+#~ msgstr "Javítás: Helytelen alapfrekvencia az AMD CPU-knál"
+
+#~ msgid "Fix missing video encode/decode information in the GPU tab"
+#~ msgstr "Javítás: Hiányzó videókódolási/-dekódolási információk a GPU fülön"
+
+#~ msgid ""
+#~ "Add an option, to the context menu, to show kernel times, in the CPU "
+#~ "graphs"
+#~ msgstr ""
+#~ "Új opció a kontextusmenüben: A kernel-idők megjelenítése a CPU "
+#~ "grafikonokon"
+
+#~ msgid "Add CPU temperature, where possible"
+#~ msgstr "CPU hőmérsékletet mutatása ha lehetséges"
+
+#~ msgid ""
+#~ "Implement smarter rounding and display precision of values throughout the "
+#~ "app by QwertyChouskie"
+#~ msgstr ""
+#~ "QwertyChouskie által beépített intelligensebb kerekítés és érték "
+#~ "megjelenítési pontosság az alkalmazásban"
+
+#~ msgid ""
+#~ "Use metainfo instead of appdata for application metadata by David "
+#~ "Guglielmi"
+#~ msgstr ""
+#~ "Metainfót használ az alkalmazás az appdata helyett az alkalmazások "
+#~ "metaadataira - David Guglielmi által"
+
+#~ msgid ""
+#~ "Fixed a regression where natively installed browsers were not showing up "
+#~ "in the apps list on Fedora"
+#~ msgstr ""
+#~ "Böngészők melyek natív csomagként vannak telepítve nem jelentek meg az "
+#~ "alkalmazások listájában Fedora alatt"
+
+#~ msgid ""
+#~ "Fixed a regression where Flatpak apps were not showing up in the apps "
+#~ "list on ArchLinux Plasma"
+#~ msgstr ""
+#~ "Flatpak csomagként telepített alkalmazások nem jelentek meg az "
+#~ "Alkalmazások listájában (ArchLinux Plasma)"
+
+#~ msgid ""
+#~ "Fixed a bug where the Maps app desktop file wasn't being parsed correctly"
+#~ msgstr ""
+#~ "Javítottam egy hibát, ahol a Térképek alkalmazás asztali fájlja nem volt "
+#~ "helyesen elemzve"
+
+#~ msgid ""
+#~ "Moved some performance related logs to g_debug to prevent spamming of "
+#~ "system logs"
+#~ msgstr ""
+#~ "Áthelyeztem néhány teljesítményre vonatkozó naplóbejegyzést a g_debug-"
+#~ "hoz, hogy megakadályozzam a rendszer naplóinak túlzsúfoltságát"
+
+#~ msgid "Translations:"
+#~ msgstr "Fordítások:"
+
+#~ msgid "New translation to Korean by Seong-ho Cho"
+#~ msgstr "Új fordítás koreai nyelvre Cho Seong-ho által"
+
+#~ msgid "New translation to Dutch by Gert"
+#~ msgstr "Új fordítás holland nyelvre Gert által"
+
+#~ msgid "New translation to Polish by _Ghost_"
+#~ msgstr "Új fordítás lengyel nyelvre a _Ghost_ által"
+
+#~ msgid "New translation to Italian by beppeilgommista"
+#~ msgstr "Új fordítás olasz nyelvre a beppeilgommista által"
+
+#~ msgid "New translation to Portuguese (Brazil) by Gérson da Fonseca Henzel"
+#~ msgstr "Fordítási javítások portugál nyelven Gérson da Fonseca Henzel által"
+
+#~ msgid "Updated Spanish translation"
+#~ msgstr "Spanyol fordítás frissítve"
+
+#~ msgid "Updated Finnish translation"
+#~ msgstr "Finn fordítás frissítve"
+
+#~ msgid "Updated Russian translation"
+#~ msgstr "Orosz fordítás frissítve"
+
+#~ msgid "Updated Chinese (Simplified) translation"
+#~ msgstr "Kínai fordítás frissítve"
+
+#~ msgid "Updated Greek translation"
+#~ msgstr "Görög fordítás frissítve"
+
+#~ msgid "Updated German translation"
+#~ msgstr "Német fordítás frissítve"
+
+#~ msgid ""
+#~ "Hotfix release to fix a bug that caused the app to not display any "
+#~ "information for some users"
+#~ msgstr ""
+#~ "Hotfix egy hiba javítására, ami miatt az alkalmazás bizonyos "
+#~ "felhasználóknál nem jelenített meg semmi információt"
+
+#~ msgid "New app icon by QwertyChouskie"
+#~ msgstr "Új alkalmazásikon QwertyChouskie által"
+
+#~ msgid "Add ability to stop and force stop apps and processes"
+#~ msgstr ""
+#~ "Új lehetőség az alkalmazások és folyamatok leállítására és "
+#~ "kényszerleállítására"
+
+#~ msgid ""
+#~ "Running apps are now shown more reliably, and should reflect most if not "
+#~ "all running apps"
+#~ msgstr ""
+#~ "A futó alkalmazások most megbízhatóbban jelennek meg, és legtöbb esetben "
+#~ "minden futó alkalmazást mutat"
+
+#~ msgid "Experimental support for Snap apps in the running apps list"
+#~ msgstr ""
+#~ "Kísérleti támogatás a Snap alkalmazásokhoz a futó alkalmazások listájában"
+
+#~ msgid ""
+#~ "Added a setting to show resource consumption individually per process or "
+#~ "cumulated with their descendants"
+#~ msgstr ""
+#~ "Hozzáadtam egy beállítást, hogy az erőforrásfogyasztást egyesével mutassa-"
+#~ "e meg folyamatonként, vagy összegezze-e őket leszármazottaikkal együtt"
+
+#~ msgid ""
+#~ "Added a setting to enable persistent sorting in the apps and processes "
+#~ "list"
+#~ msgstr ""
+#~ "Hozzáadtam egy beállítást, hogy engedélyezze az állandó rendezést az "
+#~ "alkalmazások és folyamatok listájában"
+
+#~ msgid ""
+#~ "Data gathering is now more versatile and will permit new features to be "
+#~ "added quicker and easier"
+#~ msgstr ""
+#~ "Az adatgyűjtés most sokoldalúbb, és lehetővé teszi az új funkciók "
+#~ "gyorsabb és könnyebb hozzáadását"
+
+#~ msgid "App can now be built from GNOME Builder"
+#~ msgstr "Az alkalmazást most már lehet a GNOME Builder-el építeni"
+
+#~ msgid "New translation to Norwegian Bokmål by Allan Nordhøy"
+#~ msgstr "Új fordítás norvég bokmål nyelvre Allan Nordhøy által"
+
+#~ msgid "New translation to Russian by Ivan Maslikhov"
+#~ msgstr "Új fordítás orosz nyelvre Ivan Maslikhov által"
+
+#~ msgid "New translation to Slovak by mthw0"
+#~ msgstr "Új fordítás szlovák nyelvre mthw0 által"
+
+#~ msgid "New translation to Greek by Yiannis Ioannides"
+#~ msgstr "Új fordítás görög nyelvre Yiannis Ioannides által"
+
+#~ msgid "New translation to Chinese (Simplified) by foxer NS"
+#~ msgstr "Új fordítás egyszerűsített kínai nyelvre foxer NS által"
+
+#~ msgid "New translation to French by Link Mauve"
+#~ msgstr "Új fordítás francia nyelvre Link Mauve által"
+
+#~ msgid "New translation to Hungarian by Kovács Bálint Hunor"
+#~ msgstr "Új fordítás magyar nyelvre Kovács Bálint Hunor által"
+
+#~ msgid "Updated Czech translation"
+#~ msgstr "Cseh fordítás frissítve"
+
+#~ msgid "Updated Portuguese translation"
+#~ msgstr "Portugál fordítás frissítve"
+
+#~ msgid "Fixes for Chinese translations by foxer NS"
+#~ msgstr "Javítások a kínai fordításokhoz foxer NS által"
+
+#~ msgid "Add Spanish translation by Óscar Fernández Díaz"
+#~ msgstr "Spanyol fordítás hozzáadása: Óscar Fernández Díaz"
+
+#~ msgid ""
+#~ "The memory tab now shows configured memory speed instead of the maximum "
+#~ "supported by the modules"
+#~ msgstr ""
+#~ "A memória fül most a modulok által támogatott maximális sebesség helyett "
+#~ "a konfigurált memóriasebességet mutatja"
+
+#~ msgid "Add German translation by TecCheck"
+#~ msgstr "Német fordítás hozzáadása: TecCheck"
+
+#~ msgid ""
+#~ "When a process uses large amounts of CPU or RAM it is now highlighted in "
+#~ "the Apps and Processes list"
+#~ msgstr ""
+#~ "Amikor egy folyamat nagy mennyiségű CPU-t vagy RAM-ot használ, most "
+#~ "kiemelésre kerül az Alkalmazások és Folyamatok listájában"
+
+#~ msgid "Add initial support for building for ARM64"
+#~ msgstr "Kezdeti támogatás hozzáadása az ARM64-hez"
+
+#~ msgid ""
+#~ "Take into account multiple CPU cores and cache sharing when calculating "
+#~ "cache sizes"
+#~ msgstr ""
+#~ "Vegye figyelembe a több CPU-magot és a gyorsítótár megosztását a "
+#~ "gyorsítótár méretének kiszámításakor"
+
+#~ msgid ""
+#~ "Fix browsers, installed as native packages, not showing up in the Apps "
+#~ "list"
+#~ msgstr ""
+#~ "A böngészők javítása, amelyek natív csomagokként vannak telepítve, és nem "
+#~ "jelennek meg az Alkalmazások listájában"
+
+#~ msgid "Translation updates for Traditional Chinese by Peter Dave Hello"
+#~ msgstr "Hagyományos kínai fordítás frissítések: Peter Dave Hello"
+
+#~ msgid "Translation fixes for Portuguese by Rafael Fontenelle"
+#~ msgstr "Fordítási javítások portugál nyelven Rafael Fontenelle által"
+
+#~ msgid ""
+#~ "Only show a link-local IPv6 address if no other IPv6 exists by Maximilian"
+#~ msgstr ""
+#~ "Csak akkor jelenjen meg egy helyi hálózati IPv6-cím, ha más IPv6 nincs "
+#~ "jelen Maximilian által"
+
+#~ msgid "Add Traditional Chinese locale by Peter Dave Hello"
+#~ msgstr "Hagyományos kínai nyelvi terület hozzáadása Peter Dave Hello által"
+
+#~ msgid "Add category for application menu by Renner0E"
+#~ msgstr "Kategória hozzáadása az alkalmazás menüjéhez Renner0E által"
+
+#~ msgid ""
+#~ "Fix a parsing error when parsing the output of `dmidecode` that lead to a "
+#~ "panic"
+#~ msgstr ""
+#~ "Hibajavítás a dmidecode kimenetének elemzésekor fellépő értelmezési hiba "
+#~ "miatt, amely pánikot okozott"
+
+#~ msgid ""
+#~ "Use a fallback if `/sys/devices/system/cpu/cpu0/cpufreq/base_frequency` "
+#~ "does not exist, when getting CPU base speed information"
+#~ msgstr ""
+#~ "Használjon tartalékot, ha a `/sys/devices/system/cpu/cpu0/cpufreq/"
+#~ "base_frequency` nem létezik, amikor a CPU alapsebesség információt szerzi "
+#~ "be"
+
+#~ msgid "Update GPU tab UI to be more adaptive for smaller resolutions"
+#~ msgstr ""
+#~ "Frissítse a GPU fül felhasználói felületét, hogy alkalmazkodjon jobban "
+#~ "kisebb felbontásokhoz"
+
+#~ msgid "Added Czech translation by ondra05"
+#~ msgstr "Cseh fordítás hozzáadva ondra05 által"
+
+#~ msgid "Added Portuguese translation by Rilson Joás"
+#~ msgstr "Portugál fordítás hozzáadva Rilson Joás által"
+
+#~ msgid ""
+#~ "Add keywords to desktop file to improve search function of desktop "
+#~ "environments by Hannes Kuchelmeister"
+#~ msgstr ""
+#~ "Kulcsszavak hozzáadva az asztali fájlhoz a munkakörnyezetek keresési "
+#~ "funkciójának javítása érdekében, Hannes Kuchelmeiste által"
+
+#~ msgid "Fixed a bug where the app and process list was empty for some users"
+#~ msgstr ""
+#~ "Kijavítottuk azt a hibát, amely miatt az alkalmazások és folyamatok "
+#~ "listája néhány felhasználó esetében üres volt"
+
+#~ msgid "Fix a crash that occurs when the system is under heavy load"
+#~ msgstr ""
+#~ "Hibajavítás a rendszer összeomlásának kijavítására, amely akkor fordul "
+#~ "elő, amikor a rendszer nagy terhelés alatt áll"
+
+#~ msgid "First official release!"
+#~ msgstr "Első hivatalos kiadás!"
+
+#~ msgid "Disk transfer rate"
+#~ msgstr "Lemezátviteli sebesség"
+
+#~ msgid "Overall utilization"
+#~ msgstr "Teljes kihasználtság"
+
+#~ msgid "Resources"
+#~ msgstr "Erőforrások"
 
 #~ msgid ""
 #~ "GPU support is experimental and only AMD and nVidia GPUs can be monitored"
@@ -1336,10 +1672,6 @@ msgstr ""
 
 #~ msgid "Refresh every 2 seconds"
 #~ msgstr "Frissítés 2 másodpercenként"
-
-#, fuzzy
-#~ msgid "GPU"
-#~ msgstr "_Videókártya"
 
 #~ msgid "Supported"
 #~ msgstr "Támogatott"

@@ -18,11 +18,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-use std::sync::Arc;
-
-use serde::Deserialize;
-
+use super::{INITIAL_REFRESH_TS, MIN_DELTA_REFRESH};
+use crate::logging::{critical, warning};
 use crate::platform::disk_info::{DiskInfoExt, DiskType, DisksInfoExt};
+use glob::glob;
+use serde::Deserialize;
+use std::{sync::Arc, time::Instant};
 
 #[derive(Debug, Default, Deserialize)]
 struct LSBLKBlockDevice {
@@ -148,21 +149,29 @@ pub struct DiskStats {
     discard_ticks_weighted_ms: u64,
     flush_ticks_weighted_ms: u64,
 
-    read_time_ms: std::time::Instant,
+    read_time_ms: Instant,
 }
 
 pub struct LinuxDisksInfo {
-    static_info: Vec<(DiskStats, LinuxDiskInfo)>,
+    info: Vec<(DiskStats, LinuxDiskInfo)>,
+
+    refresh_timestamp: Instant,
 }
 
 impl<'a> DisksInfoExt<'a> for LinuxDisksInfo {
     type S = LinuxDiskInfo;
-    type IterStatic = LinuxDiskInfoIter<'a>;
+    type Iter = LinuxDiskInfoIter<'a>;
 
     fn refresh_cache(&mut self) {
         use crate::{critical, warning};
 
-        let mut prev_disks = std::mem::take(&mut self.static_info);
+        let now = Instant::now();
+        if now.duration_since(self.refresh_timestamp) < MIN_DELTA_REFRESH {
+            return;
+        }
+        self.refresh_timestamp = now;
+
+        let mut prev_disks = std::mem::take(&mut self.info);
 
         let entries = match std::fs::read_dir("/sys/block") {
             Ok(e) => e,
@@ -421,14 +430,14 @@ impl<'a> DisksInfoExt<'a> for LinuxDisksInfo {
                 disk_stat.sectors_read = sectors_read;
                 disk_stat.sectors_written = sectors_written;
 
-                disk_stat.read_time_ms = std::time::Instant::now();
+                disk_stat.read_time_ms = Instant::now();
 
                 info.busy_percent = busy_percent;
                 info.response_time_ms = response_time_ms;
                 info.read_speed = read_speed;
                 info.write_speed = write_speed;
 
-                self.static_info.push((disk_stat, info));
+                self.info.push((disk_stat, info));
             } else {
                 if dir_name.starts_with("loop")
                     || dir_name.starts_with("ram")
@@ -449,7 +458,7 @@ impl<'a> DisksInfoExt<'a> for LinuxDisksInfo {
                         if dir_name.starts_with("nvme") {
                             DiskType::NVMe
                         } else if dir_name.starts_with("mmc") {
-                            DiskType::eMMC
+                            Self::get_mmc_type(&dir_name)
                         } else {
                             DiskType::SSD
                         }
@@ -490,7 +499,7 @@ impl<'a> DisksInfoExt<'a> for LinuxDisksInfo {
 
                 let model = Arc::<str>::from(format!("{} {}", vendor.trim(), model.trim()));
 
-                self.static_info.push((
+                self.info.push((
                     DiskStats {
                         sectors_read,
                         sectors_written,
@@ -503,7 +512,7 @@ impl<'a> DisksInfoExt<'a> for LinuxDisksInfo {
                         write_ticks_weighted_ms,
                         discard_ticks_weighted_ms,
                         flush_ticks_weighted_ms,
-                        read_time_ms: std::time::Instant::now(),
+                        read_time_ms: Instant::now(),
                     },
                     LinuxDiskInfo {
                         id: Arc::from(dir_name),
@@ -523,15 +532,17 @@ impl<'a> DisksInfoExt<'a> for LinuxDisksInfo {
         }
     }
 
-    fn info(&'a self) -> Self::IterStatic {
-        LinuxDiskInfoIter::new(self.static_info.iter())
+    fn info(&'a self) -> Self::Iter {
+        LinuxDiskInfoIter::new(self.info.iter())
     }
 }
 
 impl LinuxDisksInfo {
     pub fn new() -> Self {
         Self {
-            static_info: vec![],
+            info: vec![],
+
+            refresh_timestamp: *INITIAL_REFRESH_TS,
         }
     }
 
@@ -666,5 +677,50 @@ impl LinuxDisksInfo {
         }
 
         mount_points
+    }
+
+    fn get_mmc_type(dir_name: &String) -> DiskType {
+        let Some(hwmon_idx) = dir_name[6..].parse::<u64>().ok() else {
+            return DiskType::Unknown;
+        };
+
+        let globs = match glob(&format!(
+            "/sys/class/mmc_host/mmc{}/mmc{}*/type",
+            hwmon_idx, hwmon_idx
+        )) {
+            Ok(globs) => globs,
+            Err(e) => {
+                warning!("Gatherer::DiskInfo", "Failed to read mmc type entry: {}", e);
+                return DiskType::Unknown;
+            }
+        };
+
+        let mut res = DiskType::Unknown;
+        for entry in globs {
+            res = match entry {
+                Ok(path) => match std::fs::read_to_string(&path).ok() {
+                    Some(typ) => match typ.trim() {
+                        "SD" => DiskType::SD,
+                        "MMC" => DiskType::eMMC,
+                        _ => {
+                            critical!("Gatherer::DiskInfo", "Unknown mmc type: '{}'", typ);
+                            continue;
+                        }
+                    },
+                    _ => {
+                        critical!(
+                            "Gatherer::DiskInfo",
+                            "Could not read mmc type: {}",
+                            path.display()
+                        );
+                        continue;
+                    }
+                },
+                _ => {
+                    continue;
+                }
+            };
+        }
+        res
     }
 }

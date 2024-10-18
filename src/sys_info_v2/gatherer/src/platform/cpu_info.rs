@@ -70,22 +70,13 @@ pub trait CpuStaticInfoExt: Default + Append + Arg {
 
     /// The amount of L4 cache
     fn l4_cache(&self) -> Option<u64>;
-
-    /// The cpufreq driver
-    fn cpufreq_driver(&self) -> Option<&str>;
-
-    /// The cpufreq governor
-    fn cpufreq_governor(&self) -> Option<&str>;
-
-    /// The energy performance preference
-    fn energy_performance_preference(&self) -> Option<&str>;
 }
 
 impl Arg for crate::platform::CpuStaticInfo {
     const ARG_TYPE: dbus::arg::ArgType = dbus::arg::ArgType::Struct;
 
     fn signature() -> dbus::Signature<'static> {
-        dbus::Signature::from("(suytyytttt)")
+        dbus::Signature::from("(suytsyt)")
     }
 }
 
@@ -102,9 +93,6 @@ impl Append for crate::platform::CpuStaticInfo {
             ia.append(self.l2_cache().unwrap_or(0));
             ia.append(self.l3_cache().unwrap_or(0));
             ia.append(self.l4_cache().unwrap_or(0));
-            ia.append(self.cpufreq_driver().unwrap_or(""));
-            ia.append(self.cpufreq_governor().unwrap_or(""));
-            ia.append(self.energy_performance_preference().unwrap_or(""));
         });
     }
 }
@@ -149,6 +137,15 @@ pub trait CpuDynamicInfoExt<'a>: Default + Append + Arg {
 
     /// The number of seconds that have passed since the OS was booted
     fn uptime_seconds(&self) -> u64;
+
+    /// The cpufreq driver
+    fn cpufreq_driver(&self) -> Option<&str>;
+
+    /// The cpufreq governor
+    fn cpufreq_governor(&self) -> Option<&str>;
+
+    /// The energy performance preference
+    fn energy_performance_preference(&self) -> Option<&str>;
 }
 
 impl Arg for crate::platform::CpuDynamicInfo {
@@ -161,22 +158,29 @@ impl Arg for crate::platform::CpuDynamicInfo {
 
 impl Append for crate::platform::CpuDynamicInfo {
     fn append_by_ref(&self, ia: &mut dbus::arg::IterAppend) {
-        ia.append((
-            self.overall_utilization_percent() as f64,
-            self.overall_kernel_utilization_percent() as f64,
-            self.per_logical_cpu_utilization_percent()
-                .map(|v| *v as f64)
-                .collect::<Vec<_>>(),
-            self.per_logical_cpu_kernel_utilization_percent()
-                .map(|v| *v as f64)
-                .collect::<Vec<_>>(),
-            self.current_frequency_mhz(),
-            self.temperature().map_or(0_f64, |v| v as f64),
-            self.process_count(),
-            self.thread_count(),
-            self.handle_count(),
-            self.uptime_seconds(),
-        ));
+        ia.append_struct(|ia| {
+            ia.append(self.overall_utilization_percent() as f64);
+            ia.append(self.overall_kernel_utilization_percent() as f64);
+            ia.append(
+                self.per_logical_cpu_utilization_percent()
+                    .map(|v| *v as f64)
+                    .collect::<Vec<_>>(),
+            );
+            ia.append(
+                self.per_logical_cpu_kernel_utilization_percent()
+                    .map(|v| *v as f64)
+                    .collect::<Vec<_>>(),
+            );
+            ia.append(self.current_frequency_mhz());
+            ia.append(self.temperature().map_or(0_f64, |v| v as f64));
+            ia.append(self.process_count());
+            ia.append(self.thread_count());
+            ia.append(self.handle_count());
+            ia.append(self.uptime_seconds());
+            ia.append(self.cpufreq_driver().unwrap_or(""));
+            ia.append(self.cpufreq_governor().unwrap_or(""));
+            ia.append(self.energy_performance_preference().unwrap_or(""));
+        });
     }
 }
 
@@ -200,9 +204,6 @@ pub trait CpuInfoExt<'a> {
     /// It is expected that implementors of this trait cache this information, once obtained
     /// from the underlying OS
     fn refresh_dynamic_info_cache(&mut self, processes: &Self::P);
-
-    /// Implementation specific understanding of whether the cache is too old to be relevant
-    fn is_dynamic_info_cache_stale(&self) -> bool;
 
     /// Returns the static information for the CPU.
     fn static_info(&self) -> &Self::S;

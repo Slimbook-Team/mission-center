@@ -22,6 +22,7 @@ using Gtk 4.0;
 
 template $PerformancePageNetwork: Box {
   orientation: vertical;
+  margin-bottom: 10;
 
   WindowHandle {
     child: Box description {
@@ -56,10 +57,17 @@ template $PerformancePageNetwork: Box {
           styles [
             "caption",
           ]
+          label: _("Throughput over ");
+        }
+
+        Label graph_max_duration {
+          styles [
+            "caption",
+          ]
 
           hexpand: true;
           halign: start;
-          label: _("Throughput");
+          valign: start;
         }
 
         Label max_y {
@@ -81,32 +89,7 @@ template $PerformancePageNetwork: Box {
     base-color: bind template.base-color;
     data-set-count: 2;
     scroll: true;
-    auto-scale: true;
-    auto-scale-pow2: true;
-  }
-
-  Box {
-    margin-top: 2;
-    margin-bottom: 10;
-
-    Label graph_max_duration {
-      styles [
-        "caption",
-      ]
-
-      hexpand: true;
-      halign: start;
-      valign: start;
-    }
-
-    Label {
-      styles [
-        "caption",
-      ]
-
-      valign: start;
-      label: "0";
-    }
+    scaling: 2;
   }
 
   PopoverMenu context_menu {
@@ -136,7 +119,7 @@ menu context_menu_model {
       }
 
       item {
-        label: _("_Disk");
+        label: _("_Drive");
         action: "graph.disk";
       }
 
@@ -148,6 +131,11 @@ menu context_menu_model {
       item {
         label: _("_GPU");
         action: "graph.gpu";
+      }
+
+      item {
+        label: _("_Fan");
+        action: "graph.fan";
       }
     }
 

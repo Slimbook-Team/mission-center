@@ -1,119 +1,132 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+/* sys_info_v2/gatherer.rs
+ *
+ * Copyright 2024 Romeo Calota
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
-pub use super::dbus_interface::{
-    App, CpuDynamicInfo, CpuStaticInfo, DiskInfo, DiskType, GpuDynamicInfo, GpuStaticInfo,
-    OpenGLApi, Process, ProcessUsageStats,
+use std::num::NonZeroU32;
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc, time::Duration};
+
+use dbus::blocking::{
+    stdintf::{org_freedesktop_dbus::Peer, org_freedesktop_dbus::Properties},
+    LocalConnection, Proxy,
 };
-use super::dbus_interface::{IoMissioncenterMissionCenterGatherer, OrgFreedesktopDBusPeer};
+use gtk::glib::g_critical;
+
+pub use super::dbus_interface::*;
 use super::{FLATPAK_APP_PATH, IS_FLATPAK};
+use crate::show_error_dialog_and_exit;
 
 macro_rules! dbus_call {
     ($self: ident, $method: tt, $dbus_method_name: literal $(,$args:ident)*) => {{
         use gtk::glib::g_critical;
+        use super::dbus_interface::Gatherer;
 
-        let mut start = false;
-        for i in 1..=3 {
-            if start {
-                $self.start();
-            }
+        const RETRY_COUNT: i32 = 10;
 
-            match $self.dbus_proxy.borrow().as_ref().and_then(|f|Some(f.$method($($args)*))) {
-                None => {
-                    g_critical!(
-                        "MissionCenter::Gatherer",
-                        "DBus proxy is not initialized, on try {}",
-                        i,
-                    );
-                    if i == 3 {
-                        show_error_dialog_and_exit(&format!("DBus proxy is not initialized after 3 retries 😟.\nThe app will now close."));
-                    }
-                    start = true;
-                    continue;
-                }
-                Some(Ok(reply)) => {
+        for i in 1..=RETRY_COUNT {
+            match $self.proxy.$method($($args,)*) {
+                Ok(reply) => {
                     return reply;
                 }
-                Some(Err(e)) => {
+                Err(e) => {
                     match $self.is_running() {
-                    Ok(()) => {
-                        if e.name() == Some("org.freedesktop.DBus.Error.NoReply") {
-                            g_critical!(
-                                "MissionCenter::Gatherer",
-                                "DBus call '{}' timed out, on try {}",
-                                $dbus_method_name, i,
-                            );
+                        Ok(()) => {
+                            if e.name() == Some("org.freedesktop.DBus.Error.NoReply") {
+                                g_critical!(
+                                    "MissionCenter::Gatherer",
+                                    "DBus call '{}' timed out, on try {}",
+                                    $dbus_method_name, i,
+                                );
 
-                            if i == 2 {
-                                g_critical!("MissionCenter::Gatherer", "Restarting Gatherer...");
-                                $self.stop();
-                                $self.start();
+                                if i == RETRY_COUNT - 1 {
+                                    g_critical!("MissionCenter::Gatherer", "Restarting Gatherer...");
+                                    $self.stop();
+                                    $self.start();
+                                } else {
+                                    std::thread::sleep(Duration::from_millis(100));
+                                }
+                            } else {
+                                g_critical!(
+                                    "MissionCenter::Gatherer",
+                                    "DBus call '{}' failed on try {}: {}",
+                                    $dbus_method_name, i, e,
+                                );
+
+                                std::thread::sleep(Duration::from_millis(100));
                             }
-                        } else {
+                        }
+                        Err(exit_code) => {
                             g_critical!(
                                 "MissionCenter::Gatherer",
-                                "DBus call '{}' failed on try {}: {}",
-                                $dbus_method_name, i, e,
+                                "Child failed, on try {}, with exit code {}. Restarting Gatherer...",
+                                i, exit_code,
                             );
+                            $self.start();
                         }
                     }
-                    Err(exit_code) => {
-                        g_critical!(
-                            "MissionCenter::Gatherer",
-                            "Child failed, on try {}, with exit code {}. Restarting Gatherer...",
-                            i, exit_code,
-                        );
-                        $self.start();
-                    }
-                }}
+                }
             }
         }
 
-        show_error_dialog_and_exit(&format!("DBus call '{}' failed after 3 retries 😟.\nThe app will now close.", $dbus_method_name));
+        show_error_dialog_and_exit(&format!("DBus call '{}' failed after {} retries 😟.\nThe app will now close.", $dbus_method_name, RETRY_COUNT));
     }};
 }
 
-fn show_error_dialog_and_exit(message: &str) -> ! {
-    use crate::i18n::*;
-    use adw::prelude::*;
+pub(crate) struct Gatherer {
+    #[allow(dead_code)]
+    connection: Rc<LocalConnection>,
+    proxy: Proxy<'static, Rc<LocalConnection>>,
 
-    let message = Arc::<str>::from(message);
-    gtk::glib::idle_add_once(move || {
-        let app_window =
-            crate::MissionCenterApplication::default_instance().and_then(|app| app.active_window());
-
-        let error_dialog = adw::MessageDialog::new(
-            app_window.as_ref(),
-            Some("A fatal error has occurred"),
-            Some(message.as_ref()),
-        );
-        error_dialog.set_modal(true);
-        error_dialog.add_responses(&[("close", &i18n("_Quit"))]);
-        error_dialog.set_response_appearance("close", adw::ResponseAppearance::Destructive);
-        error_dialog.connect_response(None, |dialog, _| {
-            dialog.close();
-            std::process::exit(-1);
-        });
-        error_dialog.present();
-    });
-
-    loop {}
-}
-
-pub struct Gatherer<'a> {
-    dbus_proxy: RefCell<Option<dbus::blocking::Proxy<'a, dbus::blocking::Connection>>>,
-
-    command: RefCell<std::process::Command>,
     child: RefCell<Option<std::process::Child>>,
 }
 
-impl Drop for Gatherer<'_> {
+impl Drop for Gatherer {
     fn drop(&mut self) {
         self.stop();
     }
 }
 
-impl<'a> Gatherer<'a> {
+impl Gatherer {
     pub fn new() -> Self {
+        let connection = Rc::new(LocalConnection::new_session().unwrap_or_else(|e| {
+            g_critical!(
+                "MissionCenter::Gatherer",
+                "Failed to connect to D-Bus: {}",
+                e
+            );
+            show_error_dialog_and_exit("Failed to connect to D-Bus 😟.\nThe app will now close.");
+        }));
+
+        let proxy = Proxy::new(
+            MC_GATHERER_INTERFACE_NAME,
+            MC_GATHERER_OBJECT_PATH,
+            Duration::from_millis(1000),
+            connection.clone(),
+        );
+
+        Self {
+            connection,
+            proxy,
+            child: RefCell::new(None),
+        }
+    }
+
+    pub fn start(&self) {
         let mut command = if *IS_FLATPAK {
             const FLATPAK_SPAWN_CMD: &str = "/usr/bin/flatpak-spawn";
 
@@ -123,7 +136,6 @@ impl<'a> Gatherer<'a> {
                 .arg("--watch-bus")
                 .arg("--host")
                 .arg(Self::executable());
-
             cmd
         } else {
             let mut cmd = std::process::Command::new(Self::executable());
@@ -140,66 +152,25 @@ impl<'a> Gatherer<'a> {
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit());
 
-        Self {
-            dbus_proxy: RefCell::new(None),
+        self.child.borrow_mut().replace(match command.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                g_critical!(
+                    "MissionCenter::Gatherer",
+                    "Failed to spawn Gatherer process: {}",
+                    &e
+                );
+                show_error_dialog_and_exit(&format!("Failed to spawn Gatherer process: {}", e));
+            }
+        });
 
-            command: RefCell::new(command),
-            child: RefCell::new(None),
-        }
-    }
-
-    pub fn start(&self) {
-        use gtk::glib::g_critical;
-
-        self.child
-            .replace(Some(match self.command.borrow_mut().spawn() {
-                Ok(c) => c,
-                Err(e) => {
-                    g_critical!(
-                        "MissionCenter::Gatherer",
-                        "Failed to spawn Gatherer process: {}",
-                        &e
-                    );
-                    show_error_dialog_and_exit(&format!("Failed to spawn Gatherer process: {}", e));
-                }
-            }));
-
-        if self.dbus_proxy.borrow().is_none() {
-            let connection = match dbus::blocking::Connection::new_session() {
-                Ok(c) => c,
-                Err(e) => {
-                    g_critical!(
-                        "MissionCenter::Gatherer",
-                        "Failed to connect to DBus session bus: {}",
-                        &e
-                    );
-                    show_error_dialog_and_exit(&format!(
-                        "Failed to connect to the DBus session bus: {}",
-                        e
-                    ));
-                }
-            };
-
-            let dbus_proxy = dbus::blocking::Proxy::new(
-                "io.missioncenter.MissionCenter.Gatherer",
-                "/io/missioncenter/MissionCenter/Gatherer",
-                std::time::Duration::from_millis(5000),
-                connection,
-            );
-            self.dbus_proxy.replace(Some(dbus_proxy));
-        }
-
-        // AppImages tend to be slower to spawn processes, so add a bit of extra time
-        let start_wait_time_ms = if let Some(_) = std::env::var_os("APPIMAGE") {
-            200
-        } else {
-            50
-        };
+        const START_WAIT_TIME_MS: u64 = 300;
+        const RETRY_COUNT: i32 = 50;
 
         // Let the child process start up
-        for i in 0..8 {
-            std::thread::sleep(std::time::Duration::from_millis(start_wait_time_ms));
-            match self.ping() {
+        for i in 0..RETRY_COUNT {
+            std::thread::sleep(Duration::from_millis(START_WAIT_TIME_MS / 2));
+            match self.proxy.ping() {
                 Ok(()) => return,
                 Err(e) => {
                     g_critical!(
@@ -210,16 +181,15 @@ impl<'a> Gatherer<'a> {
                     );
                 }
             }
+            std::thread::sleep(Duration::from_millis(START_WAIT_TIME_MS / 2));
         }
 
         show_error_dialog_and_exit("Failed to spawn Gatherer process: Did not respond to Ping");
     }
 
     pub fn stop(&self) {
-        use gtk::glib::g_critical;
-
-        let mut child = self.child.borrow_mut();
-        if let Some(child) = child.as_mut() {
+        let child = self.child.borrow_mut().take();
+        if let Some(mut child) = child {
             // Try to get the child to wake up in case it's stuck
             #[cfg(target_family = "unix")]
             unsafe {
@@ -232,7 +202,7 @@ impl<'a> Gatherer<'a> {
                     Ok(Some(_)) => return,
                     Ok(None) => {
                         // Wait a bit and try again, the child process might just be slow to stop
-                        std::thread::sleep(std::time::Duration::from_millis(20));
+                        std::thread::sleep(Duration::from_millis(20));
                         continue;
                     }
                     Err(e) => {
@@ -252,54 +222,10 @@ impl<'a> Gatherer<'a> {
         }
     }
 
-    pub fn cpu_static_info(&self) -> CpuStaticInfo {
-        dbus_call!(self, cpu_static_info, "GetCPUStaticInfo");
-    }
-
-    pub fn cpu_dynamic_info(&self) -> CpuDynamicInfo {
-        dbus_call!(self, cpu_dynamic_info, "GetCPUDynamicInfo");
-    }
-
-    pub fn disk_info(&self) -> Vec<DiskInfo> {
-        dbus_call!(self, disks_info, "GetDisksInfo");
-    }
-
-    pub fn enumerate_gpus(&self) -> Vec<Arc<str>> {
-        dbus_call!(self, enumerate_gpus, "EnumerateGPUs");
-    }
-
-    pub fn gpu_static_info(&self, id: &str) -> GpuStaticInfo {
-        dbus_call!(self, gpu_static_info, "GetGPUStaticInfo", id);
-    }
-
-    pub fn gpu_dynamic_info(&self, id: &str) -> GpuDynamicInfo {
-        dbus_call!(self, gpu_dynamic_info, "GetGPUDynamicInfo", id);
-    }
-
-    pub fn processes(&self, core_counts_affect_percentage: bool) -> HashMap<u32, Process> {
-        dbus_call!(
-            self,
-            processes,
-            "GetProcesses",
-            core_counts_affect_percentage
-        );
-    }
-
-    pub fn apps(&self) -> HashMap<Arc<str>, App> {
-        dbus_call!(self, apps, "GetApps");
-    }
-
-    pub fn terminate_process(&self, process_id: u32) {
-        dbus_call!(self, terminate_process, "TerminateProcess", process_id);
-    }
-
-    pub fn kill_process(&self, process_id: u32) {
-        dbus_call!(self, kill_process, "KillProcess", process_id);
-    }
-
     pub fn is_running(&self) -> Result<(), i32> {
-        let mut child = self.child.borrow_mut();
-        let child = match child.as_mut() {
+        let mut lock = self.child.borrow_mut();
+
+        let child = match lock.as_mut() {
             Some(child) => child,
             None => return Err(-1),
         };
@@ -315,19 +241,6 @@ impl<'a> Gatherer<'a> {
         match status.code() {
             Some(status_code) => Err(status_code),
             None => Err(-1),
-        }
-    }
-
-    fn ping(&self) -> Result<(), Box<dyn std::error::Error>> {
-        match self
-            .dbus_proxy
-            .borrow()
-            .as_ref()
-            .and_then(|f| Some(f.ping()))
-        {
-            None => Err("Not initialized".into()),
-            Some(Ok(reply)) => Ok(reply),
-            Some(Err(e)) => Err(e.into()),
         }
     }
 
@@ -379,5 +292,129 @@ impl<'a> Gatherer<'a> {
         );
 
         exe_simple
+    }
+}
+
+impl Gatherer {
+    pub fn set_refresh_interval(&self, interval: u64) {
+        if let Err(e) = self
+            .proxy
+            .set(MC_GATHERER_INTERFACE_NAME, "RefreshInterval", interval)
+        {
+            g_critical!(
+                "MissionCenter::Gatherer",
+                "Failed to set RefreshInterval property: {e}"
+            );
+        }
+    }
+
+    pub fn set_core_count_affects_percentages(&self, v: bool) {
+        if let Err(e) = self
+            .proxy
+            .set(MC_GATHERER_INTERFACE_NAME, "CoreCountAffectsPercentages", v)
+        {
+            g_critical!(
+                "MissionCenter::Gatherer",
+                "Failed to set CoreCountAffectsPercentages property: {e}"
+            );
+        }
+    }
+
+    pub fn cpu_static_info(&self) -> CpuStaticInfo {
+        dbus_call!(self, get_cpu_static_info, "GetCPUStaticInfo");
+    }
+
+    pub fn cpu_dynamic_info(&self) -> CpuDynamicInfo {
+        dbus_call!(self, get_cpu_dynamic_info, "GetCPUDynamicInfo");
+    }
+
+    pub fn disks_info(&self) -> Vec<DiskInfo> {
+        dbus_call!(self, get_disks_info, "GetDisksInfo");
+    }
+
+    pub fn fans_info(&self) -> Vec<FanInfo> {
+        dbus_call!(self, get_fans_info, "GetFansInfo");
+    }
+
+    #[allow(unused)]
+    pub fn gpu_list(&self) -> Vec<Arc<str>> {
+        dbus_call!(self, get_gpu_list, "GetGPUList");
+    }
+
+    pub fn gpu_static_info(&self) -> Vec<GpuStaticInfo> {
+        dbus_call!(self, get_gpu_static_info, "GetGPUStaticInfo");
+    }
+
+    pub fn gpu_dynamic_info(&self) -> Vec<GpuDynamicInfo> {
+        dbus_call!(self, get_gpu_dynamic_info, "GetGPUDynamicInfo");
+    }
+
+    pub fn processes(&self) -> HashMap<u32, Process> {
+        dbus_call!(self, get_processes, "GetProcesses");
+    }
+
+    pub fn apps(&self) -> HashMap<Arc<str>, App> {
+        dbus_call!(self, get_apps, "GetApps");
+    }
+
+    pub fn services(&self) -> HashMap<Arc<str>, Service> {
+        dbus_call!(self, get_services, "GetServices");
+    }
+
+    pub fn terminate_process(&self, pid: u32) {
+        dbus_call!(self, terminate_process, "TerminateProcess", pid);
+    }
+
+    pub fn kill_process(&self, pid: u32) {
+        dbus_call!(self, kill_process, "KillProcess", pid);
+    }
+
+    pub fn start_service(&self, service_name: &str) {
+        dbus_call!(self, start_service, "StartService", service_name);
+    }
+
+    pub fn stop_service(&self, service_name: &str) {
+        dbus_call!(self, stop_service, "StopService", service_name);
+    }
+
+    pub fn restart_service(&self, service_name: &str) {
+        dbus_call!(self, restart_service, "RestartService", service_name);
+    }
+
+    pub fn enable_service(&self, service_name: &str) {
+        dbus_call!(self, enable_service, "EnableService", service_name);
+    }
+
+    pub fn disable_service(&self, service_name: &str) {
+        dbus_call!(self, disable_service, "DisableService", service_name);
+    }
+
+    pub fn get_service_logs(&self, service_name: &str, pid: Option<NonZeroU32>) -> Arc<str> {
+        dbus_call!(self, get_service_logs, "GetServiceLogs", service_name, pid);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gatherer_new() {
+        let gatherer = Gatherer::new();
+        assert!(gatherer.child.unwrap_or_else(|e| e.into_inner()).is_none());
+    }
+
+    #[test]
+    fn test_gatherer_start() {
+        let gatherer = Gatherer::new();
+        let _ = gatherer.start();
+        assert!(gatherer.child.unwrap_or_else(|e| e.into_inner()).is_some());
+    }
+
+    #[test]
+    fn test_gatherer_stop() {
+        let gatherer = Gatherer::new();
+        let _ = gatherer.start();
+        gatherer.stop();
     }
 }

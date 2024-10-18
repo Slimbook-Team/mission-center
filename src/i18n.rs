@@ -54,7 +54,6 @@ pub fn i18n(format: &str) -> String {
     gettext(format)
 }
 
-#[allow(dead_code)]
 pub fn i18n_f(format: &str, args: &[&str]) -> String {
     let s = gettext(format);
     freplace(s, args)

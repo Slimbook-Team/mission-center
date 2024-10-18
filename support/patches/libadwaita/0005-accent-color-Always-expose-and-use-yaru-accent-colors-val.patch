@@ -1,0 +1,111 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Wed, 14 Aug 2024 22:27:29 -0400
+Subject: accent-color: Always expose and use yaru accent colors values when
+ in Yaru
+
+When running in yaru mode we want to make sure the apps will always use
+the yaru colors, so expose them both via the css variables and the API
+values
+---
+ src/adw-accent-color.c      | 56 ++++++++++++++++++++++++++++++++++++++-------
+ src/stylesheet/_colors.scss | 12 ++++++++++
+ 2 files changed, 60 insertions(+), 8 deletions(-)
+
+diff --git a/src/adw-accent-color.c b/src/adw-accent-color.c
+index fa937aa..89abce0 100644
+--- a/src/adw-accent-color.c
++++ b/src/adw-accent-color.c
+@@ -11,17 +11,19 @@
+ 
+ #include "adw-color-utils-private.h"
+ 
++#include "adw-settings-private.h"
++
+ /**
+  * AdwAccentColor:
+- * @ADW_ACCENT_COLOR_BLUE: Use a blue color (`#3584e4`). This is the default value.
+- * @ADW_ACCENT_COLOR_TEAL: Use a teal color (`#2190a4`).
+- * @ADW_ACCENT_COLOR_GREEN: Use a green color (`#3a944a`).
++ * @ADW_ACCENT_COLOR_BLUE: Use a blue color (`#3584e4` or `#0073e5` in Yaru). This is the default value.
++ * @ADW_ACCENT_COLOR_TEAL: Use a teal color (`#2190a4` or `#4b8501` in Yaru).
++ * @ADW_ACCENT_COLOR_GREEN: Use a green color (`#3a944a` or `#4b8501` in Yaru).
+  * @ADW_ACCENT_COLOR_YELLOW: Use a yellow color (`#c88800`).
+- * @ADW_ACCENT_COLOR_ORANGE: Use a orange color (`#ed5b00`).
+- * @ADW_ACCENT_COLOR_RED: Use a red color (`#e62d42`).
+- * @ADW_ACCENT_COLOR_PINK: Use a pink color (`#d56199`).
+- * @ADW_ACCENT_COLOR_PURPLE: Use a purple color (`#9141ac`).
+- * @ADW_ACCENT_COLOR_SLATE: Use a slate color (`#6f8396`).
++ * @ADW_ACCENT_COLOR_ORANGE: Use a orange color (`#ed5b00` or `#e95420` in Yaru).
++ * @ADW_ACCENT_COLOR_RED: Use a red color (`#e62d42` or `#da3450` in Yaru).
++ * @ADW_ACCENT_COLOR_PINK: Use a pink color (`#d56199` or `#b34cb3` in Yaru).
++ * @ADW_ACCENT_COLOR_PURPLE: Use a purple color (`#9141ac` or `#7764d8` in Yaru).
++ * @ADW_ACCENT_COLOR_SLATE: Use a slate color (`#6f8396` or `#657b69` in Yaru).
+  *
+  * Describes the available system accent colors.
+  *
+@@ -49,6 +51,44 @@ adw_accent_color_to_rgba (AdwAccentColor  self,
+   g_return_if_fail (self <= ADW_ACCENT_COLOR_SLATE);
+   g_return_if_fail (rgba != NULL);
+ 
++  if (G_LIKELY (adw_settings_get_yaru_accent (adw_settings_get_default ())))
++    {
++      switch (self) {
++      case ADW_ACCENT_COLOR_BLUE:
++        hex = "#0073e5";
++        break;
++      case ADW_ACCENT_COLOR_TEAL:
++        hex = "#308280";
++        break;
++      case ADW_ACCENT_COLOR_GREEN:
++        hex = "#4b8501";
++        break;
++      case ADW_ACCENT_COLOR_YELLOW:
++        hex = "#c88800";
++        break;
++      case ADW_ACCENT_COLOR_ORANGE:
++        hex = "#e95420";
++        break;
++      case ADW_ACCENT_COLOR_RED:
++        hex = "#da3450";
++        break;
++      case ADW_ACCENT_COLOR_PINK:
++        hex = "#b34cb3";
++        break;
++      case ADW_ACCENT_COLOR_PURPLE:
++        hex = "#7764d8";
++        break;
++      case ADW_ACCENT_COLOR_SLATE:
++        hex = "#657b69";
++        break;
++      default:
++        g_assert_not_reached ();
++      }
++
++      if (rgba)
++        gdk_rgba_parse (rgba, hex);
++    }
++
+   switch (self) {
+   case ADW_ACCENT_COLOR_BLUE:
+     hex = "#3584e4";
+diff --git a/src/stylesheet/_colors.scss b/src/stylesheet/_colors.scss
+index 4c47949..4accb71 100644
+--- a/src/stylesheet/_colors.scss
++++ b/src/stylesheet/_colors.scss
+@@ -142,4 +142,16 @@ $is_yaru: false !default;
+ @if $is_yaru {
+   $link_color: var(--yaru-link-color);
+   $link_visited_color: var(--yaru-link-visited-color);
++
++  :root {
++    --accent-blue: #0073e5;
++    --accent-teal: #308280;
++    --accent-green: #4b8501;
++    --accent-yellow: #c88800;
++    --accent-orange: #e95420;
++    --accent-red: #da3450;
++    --accent-pink: #b34cb3;
++    --accent-purple: #7764d8;
++    --accent-slate: #657b69;
++  }
+ }

@@ -18,17 +18,25 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-use std::cell::Cell;
+use std::{cell::Cell, collections::HashMap, sync::Arc};
 
-use gtk::{gio, glib, prelude::*, subclass::prelude::*};
+use gio::ListStore;
+use glib::translate::from_glib_full;
+use gtk::{gdk, gio, glib, prelude::*, subclass::prelude::*};
 
-use crate::i18n::*;
+use crate::{
+    app,
+    apps_page::{list_item::ListItem, row_model::ContentType},
+    i18n::*,
+    settings,
+    sys_info_v2::{App, Process},
+};
 
 mod column_header;
 mod list_item;
 mod pid_column;
+mod row_model;
 mod stat_column;
-mod view_model;
 
 pub const CSS_CELL_USAGE_LOW: &[u8] = b"cell { background-color: rgba(246, 211, 45, 0.3); }";
 pub const CSS_CELL_USAGE_MEDIUM: &[u8] = b"cell { background-color: rgba(230, 97, 0, 0.3); }";
@@ -70,16 +78,16 @@ mod imp {
 
         pub tree_list_sorter: Cell<Option<gtk::TreeListRowSorter>>,
 
-        pub apps_model: Cell<gio::ListStore>,
-        pub processes_root_model: Cell<gio::ListStore>,
+        pub apps_model: Cell<ListStore>,
+        pub processes_root_model: Cell<ListStore>,
 
         pub max_cpu_usage: Cell<f32>,
         pub max_memory_usage: Cell<f32>,
         pub max_disk_usage: Cell<f32>,
         pub max_gpu_memory_usage: Cell<f32>,
 
-        pub apps: Cell<std::collections::HashMap<std::sync::Arc<str>, crate::sys_info_v2::App>>,
-        pub process_tree: Cell<crate::sys_info_v2::Process>,
+        pub apps: Cell<HashMap<Arc<str>, App>>,
+        pub process_tree: Cell<Process>,
 
         pub use_merge_stats: Cell<bool>,
     }
@@ -111,8 +119,8 @@ mod imp {
 
                 tree_list_sorter: Cell::new(None),
 
-                apps_model: Cell::new(gio::ListStore::new::<view_model::ViewModel>()),
-                processes_root_model: Cell::new(gio::ListStore::new::<view_model::ViewModel>()),
+                apps_model: Cell::new(ListStore::new::<row_model::RowModel>()),
+                processes_root_model: Cell::new(ListStore::new::<row_model::RowModel>()),
 
                 max_cpu_usage: Cell::new(0.0),
                 max_memory_usage: Cell::new(0.0),
@@ -128,10 +136,7 @@ mod imp {
     }
 
     impl AppsPage {
-        fn find_process(
-            root_process: &crate::sys_info_v2::Process,
-            pid: u32,
-        ) -> Option<&crate::sys_info_v2::Process> {
+        fn find_process(root_process: &Process, pid: u32) -> Option<&Process> {
             if root_process.pid == pid {
                 return Some(root_process);
             }
@@ -215,8 +220,123 @@ mod imp {
             let actions = gio::SimpleActionGroup::new();
             this.insert_action_group("apps-page", Some(&actions));
 
-            let app = crate::application::MissionCenterApplication::default_instance()
-                .expect("Failed to get default MissionCenterApplication instance");
+            let app = app!();
+
+            let action = gio::SimpleAction::new("show-context-menu", Some(VariantTy::TUPLE));
+            action.connect_activate({
+                let this = this.downgrade();
+                move |_action, service| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => {
+                            g_critical!(
+                                "MissionCenter::ServicesPage",
+                                "Failed to get ServicesPage instance from show-context-menu action"
+                            );
+                            return;
+                        }
+                    };
+                    let this = this.imp();
+
+                    let (list_item, pid, anchor) = match service.and_then(|s| s.get::<(u32, u64, f64, f64)>()) {
+                        Some((pid, ptr, x, y)) => {
+                            // We just get a pointer to a weak reference to the object
+                            // Do the necessary checks and downcast the object to a Widget
+                            let list_item = unsafe {
+                                let ptr = gobject_ffi::g_weak_ref_get(ptr as usize as *mut _);
+                                if ptr.is_null() {
+                                    return;
+                                } else {
+                                    let obj: Object = from_glib_full(ptr);
+                                    match obj.downcast::<gtk::Widget>() {
+                                        Ok(w) => w,
+                                        Err(_) => {
+                                            g_critical!(
+                                                "MissionCenter::AppsPage",
+                                                "Failed to downcast object to GtkWidget"
+                                            );
+                                            return;
+                                        }
+                                    }
+                                }
+                            };
+                            let list_item = list_item.downcast::<ListItem>().unwrap();
+                            if list_item.content_type() == ContentType::SectionHeader as u8 {
+                                return;
+                            }
+
+                            let anchor = match list_item.compute_point(
+                                &*this.obj(),
+                                &gtk::graphene::Point::new(x as _, y as _),
+                            ) {
+                                None => {
+                                    g_critical!(
+                                        "MissionCenter::AppsPage",
+                                        "Failed to compute_point, context menu will not be anchored to mouse position"
+                                    );
+                                    gdk::Rectangle::new(
+                                        x.round() as i32,
+                                        y.round() as i32,
+                                        1,
+                                        1,
+                                    )
+                                }
+                                Some(p) => {
+                                    gdk::Rectangle::new(
+                                        p.x().round() as i32,
+                                        p.y().round() as i32,
+                                        1,
+                                        1,
+                                    )
+                                }
+                            };
+
+                            (list_item, pid, anchor)
+                        }
+
+                        None => {
+                            g_critical!(
+                                "MissionCenter::AppsPage",
+                                "Failed to get process/app PID from show-context-menu action"
+                            );
+                            return;
+                        }
+                    };
+
+                    list_item.row().and_then(|row| {
+                        let _ = row.activate_action("listitem.select", Some(&glib::Variant::from((true, true))));
+                        None::<()>
+                    });
+
+                    const CONTENT_TYPE_APP: u8 = ContentType::App as _;
+                    const CONTENT_TYPE_PROCESS: u8 = ContentType::Process as _;
+
+                    let (stop_label, force_stop_label, is_app) = match list_item.content_type() {
+                        CONTENT_TYPE_APP => {
+                            (i18n("Stop Application"), i18n("Force Stop Application"), true)
+                        }
+                        CONTENT_TYPE_PROCESS => {
+                            (i18n("Stop Process"), i18n("Force Stop Process"), false)
+                        }
+                        _ => unreachable!(),
+                    };
+
+                    let menu = gio::Menu::new();
+
+                    let mi_stop = gio::MenuItem::new(Some(&stop_label), None);
+                    mi_stop.set_action_and_target_value(Some("apps-page.stop"), Some(&Variant::from((pid, is_app))));
+                    let mi_force_stop = gio::MenuItem::new(Some(&force_stop_label), None);
+                    mi_force_stop.set_action_and_target_value(Some("apps-page.force-stop"), Some(&Variant::from((pid, is_app))));
+
+                    menu.append_item(&mi_stop);
+                    menu.append_item(&mi_force_stop);
+
+                    this.context_menu.set_menu_model(Some(&menu));
+                    this.context_menu.set_pointing_to(Some(&anchor));
+                    this.context_menu.popup();
+                }
+            });
+            actions.add_action(&action);
 
             let action = gio::SimpleAction::new("stop", Some(VariantTy::TUPLE));
             action.connect_activate({
@@ -314,8 +434,40 @@ mod imp {
         pub fn update_app_model(&self) {
             use crate::glib_clone;
             use gtk::glib::g_critical;
+            use row_model::{ContentType, RowModel, RowModelBuilder};
             use std::collections::BTreeSet;
-            use view_model::{ContentType, ViewModel, ViewModelBuilder};
+
+            fn find_pid_in_process_tree(model: ListStore, pid: u32) -> Option<RowModel> {
+                fn fpipt_impl(model: ListStore, pid: u32, result: &mut Option<RowModel>) {
+                    let len = model.n_items();
+                    for i in 0..len {
+                        let current = model.item(i).unwrap().downcast::<RowModel>().unwrap();
+                        if current.pid() == pid {
+                            *result = Some(current);
+                            return;
+                        }
+                    }
+
+                    for i in 0..len {
+                        let current = model.item(i).unwrap().downcast::<RowModel>().unwrap();
+                        fpipt_impl(current.children().clone(), pid, result);
+                    }
+                }
+
+                let mut result = None;
+                fpipt_impl(model, pid, &mut result);
+
+                result
+            }
+
+            fn update_icons(model: ListStore, icon: &str) {
+                let len = model.n_items();
+                for i in 0..len {
+                    let current = model.item(i).unwrap().downcast::<RowModel>().unwrap();
+                    current.set_icon(icon);
+                    update_icons(current.children().clone(), icon);
+                }
+            }
 
             let model = glib_clone!(self.apps_model);
             let apps = self.apps.take();
@@ -323,7 +475,7 @@ mod imp {
 
             let mut to_remove = BTreeSet::new();
             for i in 0..model.n_items() {
-                let current = model.item(i).unwrap().downcast::<ViewModel>();
+                let current = model.item(i).unwrap().downcast::<RowModel>();
                 if current.is_err() {
                     continue;
                 }
@@ -341,7 +493,7 @@ mod imp {
             for (app_id, app) in &apps {
                 let pos = if model.n_items() > 0 {
                     model.find_with_equal_func(|current| {
-                        let current = current.downcast_ref::<ViewModel>();
+                        let current = current.downcast_ref::<RowModel>();
                         if current.is_none() {
                             return false;
                         }
@@ -352,10 +504,6 @@ mod imp {
                 } else {
                     None
                 };
-
-                if app.pids.is_empty() {
-                    dbg!(&app);
-                }
 
                 // Find the first process that has any children. This is most likely the root
                 // of the App's process tree.
@@ -376,12 +524,13 @@ mod imp {
                 };
 
                 let pp = primary_process.cloned().unwrap_or_default();
-                let view_model = if pos.is_none() {
-                    let view_model = ViewModelBuilder::new()
+                let row_model = if pos.is_none() {
+                    let row_model = RowModelBuilder::new()
                         .name(app.name.as_ref())
                         .id(app.id.as_ref())
                         .icon(
-                            Option::as_ref(&app.icon)
+                            app.icon
+                                .as_ref()
                                 .map(|i| i.as_ref())
                                 .unwrap_or("application-x-executable"),
                         )
@@ -397,33 +546,56 @@ mod imp {
                         .max_cpu_usage(self.max_cpu_usage.get())
                         .max_memory_usage(self.max_memory_usage.get())
                         .build();
-                    model.append(&view_model);
+                    model.append(&row_model);
 
-                    view_model
+                    row_model
                 } else {
                     let model: gio::ListModel = model.clone().into();
-                    let view_model = model
+                    let row_model = model
                         .item(pos.unwrap())
                         .unwrap()
-                        .downcast::<ViewModel>()
+                        .downcast::<RowModel>()
                         .unwrap();
 
                     // The app might have been stopped and restarted between updates, so always
                     // reset the primary PID, and repopulate the list of child processes.
-                    view_model.set_pid(primary_pid);
-                    view_model.set_cpu_usage(pp.merged_usage_stats.cpu_usage);
-                    view_model.set_memory_usage(pp.merged_usage_stats.memory_usage);
-                    view_model.set_disk_usage(pp.merged_usage_stats.disk_usage);
-                    view_model.set_network_usage(pp.merged_usage_stats.network_usage);
-                    view_model.set_gpu_usage(pp.merged_usage_stats.gpu_usage);
-                    view_model.set_gpu_memory_usage(pp.merged_usage_stats.gpu_memory_usage);
+                    row_model.set_pid(primary_pid);
+                    row_model.set_cpu_usage(pp.merged_usage_stats.cpu_usage);
+                    row_model.set_memory_usage(pp.merged_usage_stats.memory_usage);
+                    row_model.set_disk_usage(pp.merged_usage_stats.disk_usage);
+                    row_model.set_network_usage(pp.merged_usage_stats.network_usage);
+                    row_model.set_gpu_usage(pp.merged_usage_stats.gpu_usage);
+                    row_model.set_gpu_memory_usage(pp.merged_usage_stats.gpu_memory_usage);
 
-                    view_model
+                    row_model
                 };
 
-                let children = view_model.children().clone();
-                if let Some(process) = primary_process {
-                    Self::update_process_model(self, children, process);
+                let children = row_model.children().clone();
+                if let Some(_) = primary_process {
+                    let root_model = glib_clone!(self.processes_root_model);
+                    if let Some(model) = find_pid_in_process_tree(root_model, primary_pid) {
+                        if model.pid() != row_model.pid() || children.n_items() == 0 {
+                            children.remove_all();
+                            children.append(&model);
+                        }
+
+                        let icon = app
+                            .icon
+                            .as_ref()
+                            .map(|i| i.as_ref())
+                            .unwrap_or("application-x-executable-symbolic");
+
+                        model.set_icon(icon);
+                        update_icons(model.children().clone(), icon);
+                    } else {
+                        children.remove_all();
+
+                        g_critical!(
+                            "MissionCenter::AppsPage",
+                            "Failed to find process in process tree, for App {}",
+                            app.name.as_ref()
+                        );
+                    }
                 } else {
                     children.remove_all();
 
@@ -445,7 +617,7 @@ mod imp {
             let process_tree = self.process_tree.take();
             let processes_root_model = glib_clone!(self.processes_root_model);
 
-            Self::update_process_model(self, processes_root_model.clone(), &process_tree);
+            Self::update_process_model(self, processes_root_model, &process_tree);
 
             self.process_tree.set(process_tree);
         }
@@ -454,18 +626,18 @@ mod imp {
             &self,
             lhs: &glib::Object,
             rhs: &glib::Object,
-            compare_fn: fn(&view_model::ViewModel, &view_model::ViewModel) -> std::cmp::Ordering,
+            compare_fn: fn(&row_model::RowModel, &row_model::RowModel) -> std::cmp::Ordering,
         ) -> std::cmp::Ordering {
+            use row_model::{ContentType, RowModel, SectionType};
             use std::cmp::*;
-            use view_model::{ContentType, SectionType, ViewModel};
 
-            let lhs = lhs.downcast_ref::<ViewModel>();
+            let lhs = lhs.downcast_ref::<RowModel>();
             if lhs.is_none() {
                 return Ordering::Equal.into();
             }
             let lhs = lhs.unwrap();
 
-            let rhs = rhs.downcast_ref::<ViewModel>();
+            let rhs = rhs.downcast_ref::<RowModel>();
             if rhs.is_none() {
                 return Ordering::Equal.into();
             }
@@ -535,24 +707,24 @@ mod imp {
             Ordering::Equal
         }
 
-        pub fn set_up_root_model(&self) -> gio::ListStore {
-            use view_model::{ContentType, SectionType, ViewModel, ViewModelBuilder};
+        pub fn set_up_root_model(&self) -> ListStore {
+            use row_model::{ContentType, RowModel, RowModelBuilder, SectionType};
 
-            let apps_section_header = ViewModelBuilder::new()
+            let apps_section_header = RowModelBuilder::new()
                 .name(&i18n("Apps"))
                 .content_type(ContentType::SectionHeader)
                 .section_type(SectionType::Apps)
                 .show_expander(false)
                 .build();
 
-            let processes_section_header = ViewModelBuilder::new()
+            let processes_section_header = RowModelBuilder::new()
                 .name(&i18n("Processes"))
                 .content_type(ContentType::SectionHeader)
                 .section_type(SectionType::Processes)
                 .show_expander(false)
                 .build();
 
-            let root_model = gio::ListStore::new::<ViewModel>();
+            let root_model = ListStore::new::<RowModel>();
             root_model.append(&apps_section_header);
             root_model.append(&processes_section_header);
 
@@ -562,15 +734,15 @@ mod imp {
         pub fn set_up_tree_model(&self, model: gio::ListModel) -> gtk::TreeListModel {
             use crate::glib_clone;
 
-            use view_model::{ContentType, SectionType, ViewModel};
+            use row_model::{ContentType, RowModel, SectionType};
 
             let this = self.obj().downgrade();
             gtk::TreeListModel::new(model, false, true, move |model_entry| {
-                let view_model = model_entry.downcast_ref::<ViewModel>();
-                if view_model.is_none() {
+                let row_model = model_entry.downcast_ref::<RowModel>();
+                if row_model.is_none() {
                     return None;
                 }
-                let view_model = view_model.unwrap();
+                let row_model = row_model.unwrap();
 
                 let this = this.upgrade();
                 if this.is_none() {
@@ -579,15 +751,15 @@ mod imp {
                 let this = this.unwrap();
                 let this = this.imp();
 
-                let content_type = view_model.content_type();
+                let content_type = row_model.content_type();
 
                 if content_type == ContentType::SectionHeader as u8 {
-                    if view_model.section_type() == SectionType::Apps as u8 {
+                    if row_model.section_type() == SectionType::Apps as u8 {
                         let apps_model = glib_clone!(this.apps_model);
                         return Some(apps_model.into());
                     }
 
-                    if view_model.section_type() == SectionType::Processes as u8 {
+                    if row_model.section_type() == SectionType::Processes as u8 {
                         let processes_model = glib_clone!(this.processes_root_model);
                         return Some(processes_model.into());
                     }
@@ -598,7 +770,7 @@ mod imp {
                 if content_type == ContentType::Process as u8
                     || content_type == ContentType::App as u8
                 {
-                    return Some(view_model.children().clone().into());
+                    return Some(row_model.children().clone().into());
                 }
 
                 None
@@ -607,18 +779,15 @@ mod imp {
 
         pub fn set_up_filter_model(&self, model: gio::ListModel) -> gtk::FilterListModel {
             use glib::g_critical;
-            use view_model::{ContentType, ViewModel};
+            use row_model::{ContentType, RowModel};
 
-            let window = crate::MissionCenterApplication::default_instance()
-                .and_then(|app| app.active_window())
-                .and_then(|window| window.downcast::<crate::window::MissionCenterWindow>().ok());
-            if window.is_none() {
+            let Some(window) = app!().window() else {
                 g_critical!(
                     "MissionCenter::AppsPage",
                     "Failed to get MissionCenterWindow instance; searching and filtering will not function"
                 );
-            }
-            let window = window.unwrap();
+                return gtk::FilterListModel::new(Some(model), None::<gtk::CustomFilter>);
+            };
 
             let filter = gtk::CustomFilter::new({
                 let window = window.downgrade();
@@ -639,26 +808,27 @@ mod imp {
                         return true;
                     }
 
-                    let view_model = match obj
+                    let row_model = match obj
                         .downcast_ref::<gtk::TreeListRow>()
                         .and_then(|row| row.item())
-                        .and_then(|item| item.downcast::<ViewModel>().ok())
+                        .and_then(|item| item.downcast::<RowModel>().ok())
                     {
                         None => return false,
                         Some(vm) => vm,
                     };
-                    if view_model.content_type() == ContentType::SectionHeader as u8 {
+                    if row_model.content_type() == ContentType::SectionHeader as u8 {
                         return true;
                     }
 
-                    let entry_name = view_model.name().to_lowercase();
+                    let entry_name = row_model.name().to_lowercase();
+                    let pid = row_model.pid().to_string();
                     let search_query = window.header_search_entry.text().to_lowercase();
 
-                    if entry_name.contains(&search_query) {
+                    if entry_name.contains(&search_query) || pid.contains(&search_query) {
                         return true;
                     }
 
-                    if search_query.contains(&entry_name) {
+                    if search_query.contains(&entry_name) || search_query.contains(&pid) {
                         return true;
                     }
 
@@ -675,9 +845,16 @@ mod imp {
 
             window.imp().header_search_entry.connect_search_changed({
                 let filter = filter.downgrade();
+                let window = window.downgrade();
                 move |_| {
-                    if let Some(filter) = filter.upgrade() {
-                        filter.changed(gtk::FilterChange::Different);
+                    if let Some(window) = window.upgrade() {
+                        if !window.apps_page_active() {
+                            return;
+                        }
+
+                        if let Some(filter) = filter.upgrade() {
+                            filter.changed(gtk::FilterChange::Different);
+                        }
                     }
                 }
             });
@@ -882,18 +1059,7 @@ mod imp {
                     move |sorter, _| {
                         use glib::g_critical;
 
-                        let settings = match crate::MissionCenterApplication::default_instance()
-                            .and_then(|app| app.settings())
-                        {
-                            None => {
-                                g_critical!(
-                                    "MissionCenter::AppsPage",
-                                    "Failed to save column sorting, could not get settings instance from MissionCenterApplication"
-                                );
-                                return;
-                            }
-                            Some(s) => s,
-                        };
+                        let settings = settings!();
 
                         let this = match this.upgrade() {
                             None => return,
@@ -901,7 +1067,11 @@ mod imp {
                         };
 
                         if let Some(sorter) = sorter.downcast_ref::<gtk::ColumnViewSorter>() {
-                            let sort_column = sorter.primary_sort_column().as_ref().and_then(|c| Some(c.as_ptr() as usize)).unwrap_or_default();
+                            let sort_column = sorter
+                                .primary_sort_column()
+                                .as_ref()
+                                .and_then(|c| Some(c.as_ptr() as usize))
+                                .unwrap_or_default();
 
                             let nc = this.imp().name_column.as_ptr() as usize;
                             let pc = this.imp().pid_column.as_ptr() as usize;
@@ -931,24 +1101,28 @@ mod imp {
                                     "Unknown column sorting encountered"
                                 );
                                 Ok(())
-                            }
-                            {
+                            } {
                                 g_critical!(
                                     "MissionCenter::AppsPage",
-                                    "Failed to save column sorting: {}", e
+                                    "Failed to save column sorting: {}",
+                                    e
                                 );
                                 return;
                             }
 
                             let sort_order = sorter.primary_sort_order();
-                            if let Err(e) = settings.set_enum("apps-page-sorting-order", match sort_order {
-                                gtk::SortType::Ascending => 0,
-                                gtk::SortType::Descending => 1,
-                                _ => 0
-                            }) {
+                            if let Err(e) = settings.set_enum(
+                                "apps-page-sorting-order",
+                                match sort_order {
+                                    gtk::SortType::Ascending => 0,
+                                    gtk::SortType::Descending => 1,
+                                    _ => 0,
+                                },
+                            ) {
                                 g_critical!(
                                     "MissionCenter::AppsPage",
-                                    "Failed to save column sorting: {}", e
+                                    "Failed to save column sorting: {}",
+                                    e
                                 );
                                 return;
                             }
@@ -962,7 +1136,7 @@ mod imp {
             gtk::SortListModel::new(Some(model), Some(tree_list_sorter))
         }
 
-        pub fn set_up_view_model(&self) {
+        pub fn set_up_model(&self) {
             let root_model = self.set_up_root_model();
             let tree_model = self.set_up_tree_model(root_model.into());
             let filter_model = self.set_up_filter_model(tree_model.into());
@@ -971,18 +1145,7 @@ mod imp {
             self.column_view
                 .set_model(Some(&gtk::SingleSelection::new(Some(sort_model))));
 
-            let settings = match crate::MissionCenterApplication::default_instance()
-                .and_then(|app| app.settings())
-            {
-                None => {
-                    glib::g_critical!(
-                        "MissionCenter::AppsPage",
-                        "Failed to get column sorting, could not get settings instance from MissionCenterApplication"
-                    );
-                    return;
-                }
-                Some(s) => s,
-            };
+            let settings = settings!();
 
             let remember_sorting = settings.boolean("apps-page-remember-sorting");
             if remember_sorting {
@@ -1070,17 +1233,17 @@ mod imp {
             let column_header_disk = self.column_header_disk.take();
             if let Some(column_header_disk) = &column_header_disk {
                 let total_busy_percent = readings
-                    .disk_info
+                    .disks_info
                     .iter()
                     .map(|disk| disk.busy_percent)
                     .sum::<f32>();
 
-                if readings.disk_info.len() == 0 {
+                if readings.disks_info.len() == 0 {
                     column_header_disk.set_heading("0%");
                 } else {
                     column_header_disk.set_heading(format!(
                         "{}%",
-                        (total_busy_percent / readings.disk_info.len() as f32).round()
+                        (total_busy_percent / readings.disks_info.len() as f32).round()
                     ));
                 }
             }
@@ -1119,16 +1282,12 @@ mod imp {
                 .set(column_header_gpu_mem);
         }
 
-        fn update_process_model(
-            this: &AppsPage,
-            model: gio::ListStore,
-            process: &crate::sys_info_v2::Process,
-        ) {
-            use crate::apps_page::view_model::{ContentType, ViewModel, ViewModelBuilder};
+        fn update_process_model(this: &AppsPage, model: ListStore, process: &Process) {
+            use crate::apps_page::row_model::{ContentType, RowModel, RowModelBuilder};
 
             let mut to_remove = Vec::new();
             for i in 0..model.n_items() {
-                let current = model.item(i).unwrap().downcast::<ViewModel>();
+                let current = model.item(i).unwrap().downcast::<RowModel>();
                 if current.is_err() {
                     continue;
                 }
@@ -1147,7 +1306,7 @@ mod imp {
             for (pid, child) in &process.children {
                 let pos = if model.n_items() > 0 {
                     model.find_with_equal_func(|current| {
-                        let current = current.downcast_ref::<ViewModel>();
+                        let current = current.downcast_ref::<RowModel>();
                         if current.is_none() {
                             return false;
                         }
@@ -1205,9 +1364,10 @@ mod imp {
                             )
                         };
 
-                    let view_model = ViewModelBuilder::new()
+                    let row_model = RowModelBuilder::new()
                         .name(entry_name)
                         .content_type(ContentType::Process)
+                        .icon("application-x-executable-symbolic")
                         .pid(*pid)
                         .cpu_usage(cpu_usage)
                         .memory_usage(mem_usage)
@@ -1220,15 +1380,15 @@ mod imp {
                         .max_gpu_memory_usage(this.max_gpu_memory_usage.get())
                         .build();
 
-                    view_model.set_merged_stats(&child.merged_usage_stats);
+                    row_model.set_merged_stats(&child.merged_usage_stats);
 
-                    model.append(&view_model);
-                    view_model.children().clone()
+                    model.append(&row_model);
+                    row_model.children().clone()
                 } else {
-                    let view_model = model
+                    let row_model = model
                         .item(pos.unwrap())
                         .unwrap()
-                        .downcast::<ViewModel>()
+                        .downcast::<RowModel>()
                         .unwrap();
 
                     let (cpu_usage, mem_usage, net_usage, disk_usage, gpu_usage, gpu_mem_usage) =
@@ -1252,16 +1412,17 @@ mod imp {
                             )
                         };
 
-                    view_model.set_cpu_usage(cpu_usage);
-                    view_model.set_memory_usage(mem_usage);
-                    view_model.set_disk_usage(disk_usage);
-                    view_model.set_network_usage(net_usage);
-                    view_model.set_gpu_usage(gpu_usage);
-                    view_model.set_gpu_memory_usage(gpu_mem_usage);
+                    row_model.set_icon("application-x-executable-symbolic");
+                    row_model.set_cpu_usage(cpu_usage);
+                    row_model.set_memory_usage(mem_usage);
+                    row_model.set_disk_usage(disk_usage);
+                    row_model.set_network_usage(net_usage);
+                    row_model.set_gpu_usage(gpu_usage);
+                    row_model.set_gpu_memory_usage(gpu_mem_usage);
 
-                    view_model.set_merged_stats(&child.merged_usage_stats);
+                    row_model.set_merged_stats(&child.merged_usage_stats);
 
-                    view_model.children().clone()
+                    row_model.children().clone()
                 };
 
                 Self::update_process_model(this, child_model, child);
@@ -1278,7 +1439,7 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             list_item::ListItem::ensure_type();
 
-            view_model::ViewModel::ensure_type();
+            row_model::RowModel::ensure_type();
 
             column_header::ColumnHeader::ensure_type();
             pid_column::PidColumn::ensure_type();
@@ -1294,30 +1455,25 @@ mod imp {
 
     impl ObjectImpl for AppsPage {
         fn constructed(&self) {
-            use crate::MissionCenterApplication;
-            use glib::{clone, g_critical};
-
             self.parent_constructed();
 
             self.configure_actions();
 
-            let app = match MissionCenterApplication::default_instance() {
-                Some(app) => app,
-                None => {
-                    g_critical!(
-                        "MissionCenter::AppsPage",
-                        "Failed to get default instance of MissionCenterApplication"
-                    );
-                    return;
+            let settings = settings!();
+
+            self.use_merge_stats
+                .set(settings.boolean("apps-page-merged-process-stats"));
+
+            settings.connect_changed(Some("apps-page-merged-process-stats"), {
+                let this = self.obj().downgrade();
+                move |settings, _| {
+                    if let Some(this) = this.upgrade() {
+                        this.imp()
+                            .use_merge_stats
+                            .set(settings.boolean("apps-page-merged-process-stats"));
+                    }
                 }
-            };
-            if let Some(settings) = app.settings() {
-                self.use_merge_stats
-                    .set(settings.boolean("apps-page-merged-process-stats"));
-                settings.connect_changed(Some("apps-page-merged-process-stats"), clone!(@weak self as this => move |settings, _| {
-                    this.use_merge_stats.set(settings.boolean("apps-page-merged-process-stats"));
-                }));
-            }
+            });
         }
     }
 
@@ -1357,7 +1513,7 @@ mod imp {
             );
             let (column_view_title, column_header_disk) = self.configure_column_header(
                 &column_view_title.unwrap(),
-                &i18n("Disk"),
+                &i18n("Drive"),
                 "0%",
                 gtk::Align::End,
             );
@@ -1403,10 +1559,6 @@ glib::wrapper! {
 }
 
 impl AppsPage {
-    pub fn context_menu(&self) -> &gtk::PopoverMenu {
-        &self.imp().context_menu
-    }
-
     pub fn set_initial_readings(&self, readings: &mut crate::sys_info_v2::Readings) -> bool {
         use std::collections::HashMap;
 
@@ -1443,14 +1595,14 @@ impl AppsPage {
         std::mem::swap(&mut apps, &mut readings.running_apps);
         this.apps.set(apps);
 
-        let mut process_tree = crate::sys_info_v2::Process::default();
+        let mut process_tree = Process::default();
         std::mem::swap(&mut process_tree, &mut readings.process_tree);
         this.process_tree.set(process_tree);
 
-        this.set_up_view_model();
+        this.set_up_model();
 
-        this.update_app_model();
         this.update_processes_models();
+        this.update_app_model();
         this.update_column_headers(readings);
 
         true
@@ -1467,8 +1619,8 @@ impl AppsPage {
         std::mem::swap(&mut process_tree, &mut readings.process_tree);
         this.process_tree.set(process_tree);
 
-        this.update_app_model();
         this.update_processes_models();
+        this.update_app_model();
         this.update_column_headers(readings);
 
         let sorter = this.tree_list_sorter.take();

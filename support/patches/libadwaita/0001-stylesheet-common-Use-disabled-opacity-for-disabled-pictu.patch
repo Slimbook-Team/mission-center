@@ -1,0 +1,26 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Tue, 21 Mar 2023 00:46:05 +0100
+Subject: stylesheet/common: Use disabled opacity for disabled pictures
+
+To mimic https://gitlab.gnome.org/GNOME/gtk/-/merge_requests/5689
+
+Origin: https://gitlab.gnome.org/GNOME/libadwaita/-/merge_requests/814
+---
+ src/stylesheet/_common.scss | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/stylesheet/_common.scss b/src/stylesheet/_common.scss
+index dd263bd..b3bab72 100644
+--- a/src/stylesheet/_common.scss
++++ b/src/stylesheet/_common.scss
+@@ -34,6 +34,10 @@ dnd {
+   -gtk-icon-size: 32px;
+ }
+ 
++picture:disabled {
++  opacity: $disabled_opacity;
++}
++
+ %osd,
+ .osd:not(progressbar):not(button):not(menubutton):not(splitbutton) {
+   --accent-bg-color: RGB(255 255 255 / 75%);

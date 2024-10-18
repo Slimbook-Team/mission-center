@@ -34,6 +34,7 @@ pub enum DiskType {
     SSD,
     NVMe,
     eMMC,
+    SD,
     iSCSI,
     Optical,
 }
@@ -115,7 +116,7 @@ impl Append for crate::platform::DiskInfoIter<'_> {
 /// Provides an interface for gathering disk information
 pub trait DisksInfoExt<'a> {
     type S: DiskInfoExt;
-    type IterStatic: Iterator<Item = &'a Self::S>
+    type Iter: Iterator<Item = &'a Self::S>
     where
         <Self as DisksInfoExt<'a>>::S: 'a;
 
@@ -126,5 +127,5 @@ pub trait DisksInfoExt<'a> {
     fn refresh_cache(&mut self);
 
     /// Returns the static information for the disks present in the system.
-    fn info(&'a self) -> Self::IterStatic;
+    fn info(&'a self) -> Self::Iter;
 }

@@ -23,10 +23,11 @@
             </li>
             <li>See a breakdown of resource usage by app and process</li>
             <li>Supports a minified summary view for simple monitoring</li>
-            <li>Use OpenGL rendering for all the graphs in an effort to reduce CPU and overall resource usage</li>
+            <li>Use hardware accelerated rendering for all the graphs in an effort to reduce CPU and overall resource
+                usage
+            </li>
             <li>Uses GTK4 and Libadwaita</li>
             <li>Written in Rust</li>
-            <li>Flatpak first</li>
         </ul>
     </description>
 

@@ -24,7 +24,7 @@ use dbus::arg::{Append, Arg};
 pub trait AppExt<'a>: Default + Append + Arg {
     type Iter: Iterator<Item = &'a u32>;
 
-    /// The name of the app in human readable form
+    /// The name of the app in human-readable form
     fn name(&self) -> &str;
 
     /// The icon used by the app
@@ -72,9 +72,6 @@ pub trait AppsExt<'a>: Default + Append + Arg {
     /// It is expected that implementors of this trait cache the running app list once obtained from
     /// the underlying OS
     fn refresh_cache(&mut self, processes: &std::collections::HashMap<u32, Self::P>);
-
-    /// Implementation specific understanding of whether the cache is too old to be relevant
-    fn is_cache_stale(&self) -> bool;
 
     /// Return the list of (cached) running apps
     fn app_list(&self) -> &[Self::A];

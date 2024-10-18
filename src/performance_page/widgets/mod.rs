@@ -20,8 +20,10 @@
 
 pub use graph_widget::GraphWidget;
 pub use mem_composition_widget::MemoryCompositionWidget;
+pub use sidebar_drop_hint::SidebarDropHint;
 
 const GRAPH_RADIUS: f32 = 7.;
 
 mod graph_widget;
 mod mem_composition_widget;
+mod sidebar_drop_hint;

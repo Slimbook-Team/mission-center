@@ -18,6 +18,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+use std::path::Path;
+
+use crate::i18n::*;
+
 #[allow(non_camel_case_types)]
 mod if_nameindex {
     #[derive(Debug, Copy, Clone)]
@@ -38,14 +42,76 @@ mod if_nameindex {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum NetDeviceType {
-    Wired = 0,
-    Wireless = 1,
-    Other = 2,
+    Bluetooth,
+    Bridge,
+    Docker,
+    InfiniBand,
+    Multipass,
+    Virtual,
+    VPN,
+    Wired,
+    Wireless,
+    WWAN,
+    Other = 255,
+}
+
+impl ToString for NetDeviceType {
+    fn to_string(&self) -> String {
+        match self {
+            NetDeviceType::Bluetooth => i18n("Bluetooth"),
+            NetDeviceType::Bridge => i18n("Bridge"),
+            NetDeviceType::Docker => i18n("Docker"),
+            NetDeviceType::InfiniBand => i18n("InfiniBand"),
+            NetDeviceType::Multipass => i18n("Multipass"),
+            NetDeviceType::Virtual => i18n("Virtual"),
+            NetDeviceType::VPN => i18n("VPN"),
+            NetDeviceType::Wired => i18n("Ethernet"),
+            NetDeviceType::Wireless => i18n("Wi-Fi"),
+            NetDeviceType::WWAN => i18n("WWAN"),
+            NetDeviceType::Other => i18n("Other"),
+        }
+    }
+}
+
+impl From<u8> for NetDeviceType {
+    fn from(v: u8) -> Self {
+        match v {
+            0 => NetDeviceType::Bluetooth,
+            1 => NetDeviceType::Bridge,
+            2 => NetDeviceType::Docker,
+            3 => NetDeviceType::InfiniBand,
+            4 => NetDeviceType::Multipass,
+            5 => NetDeviceType::Virtual,
+            6 => NetDeviceType::VPN,
+            7 => NetDeviceType::Wired,
+            8 => NetDeviceType::Wireless,
+            9 => NetDeviceType::WWAN,
+            _ => NetDeviceType::Other,
+        }
+    }
+}
+
+impl From<NetDeviceType> for u8 {
+    fn from(v: NetDeviceType) -> Self {
+        match v {
+            NetDeviceType::Bluetooth => 0,
+            NetDeviceType::Bridge => 1,
+            NetDeviceType::Docker => 2,
+            NetDeviceType::InfiniBand => 3,
+            NetDeviceType::Multipass => 4,
+            NetDeviceType::Virtual => 5,
+            NetDeviceType::VPN => 6,
+            NetDeviceType::Wired => 7,
+            NetDeviceType::Wireless => 8,
+            NetDeviceType::WWAN => 9,
+            NetDeviceType::Other => 255,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkDeviceDescriptor {
-    pub r#type: NetDeviceType,
+    pub kind: NetDeviceType,
     pub if_name: String,
     pub adapter_name: Option<String>,
 }
@@ -72,7 +138,11 @@ pub struct NetworkDevice {
     pub wireless_info: Option<WirelessInfo>,
 
     pub send_bps: f32,
+    pub sent_bytes: u64,
     pub recv_bps: f32,
+    pub recv_bytes: u64,
+
+    pub max_speed: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,6 +167,7 @@ pub struct NetInfo {
 }
 
 unsafe impl Send for NetInfo {}
+unsafe impl Sync for NetInfo {}
 
 impl Drop for NetInfo {
     fn drop(&mut self) {
@@ -212,17 +283,13 @@ impl NetInfo {
             let if_name = unsafe { std::ffi::CStr::from_ptr(if_entry.if_name) };
 
             let if_name_str = if_name.to_string_lossy();
-            if if_name_str.starts_with("lo")
-                || if_name_str.starts_with("docker")
-                || if_name_str.starts_with("tun")
-                || if_name_str.starts_with("tap")
-            {
+            if if_name_str.starts_with("lo") {
                 continue;
             }
 
             let device_path = match unsafe { self.nm_device_obj_path_new(if_name) } {
                 None => {
-                    g_critical!(
+                    g_debug!(
                         "MissionCenter::NetInfo",
                         "Failed to get device path for {}",
                         if_name_str
@@ -250,9 +317,11 @@ impl NetInfo {
 
             let if_name = if_name_str.to_string();
 
+            let max_speed = Self::get_max_speed(&if_name);
+
             let (tx_bytes, rx_bytes) = Self::tx_rx_bytes(&if_name);
 
-            let (descriptor, hw_address, send_bps, recv_bps) =
+            let (descriptor, hw_address, send_bps, send_bytes, recv_bps, rec_bytes) =
                 if let Some(cached_device) = self.device_cache.get_mut(&if_name) {
                     let prev_tx_bytes = if cached_device.tx_bytes > tx_bytes {
                         tx_bytes
@@ -278,10 +347,12 @@ impl NetInfo {
                         cached_device.descriptor.clone(),
                         cached_device.hw_address.clone(),
                         send_bps,
+                        tx_bytes,
                         recv_bps,
+                        rx_bytes,
                     )
                 } else {
-                    let r#type = Self::device_type(&if_name);
+                    let kind = Self::device_kind(&if_name);
                     let adapter_name = unsafe { self.adapter_name(device_proxy) };
                     let hw_address = Self::hw_address(device_proxy);
 
@@ -289,7 +360,7 @@ impl NetInfo {
                         if_name.clone(),
                         NetworkDeviceCacheEntry {
                             descriptor: NetworkDeviceDescriptor {
-                                r#type,
+                                kind,
                                 if_name: if_name.clone(),
                                 adapter_name: adapter_name.clone(),
                             },
@@ -304,13 +375,15 @@ impl NetInfo {
 
                     (
                         NetworkDeviceDescriptor {
-                            r#type,
+                            kind,
                             if_name,
                             adapter_name,
                         },
                         hw_address,
                         0.,
+                        0,
                         0.,
+                        0,
                     )
                 };
 
@@ -323,7 +396,7 @@ impl NetInfo {
                 ip6_address,
             };
 
-            let wireless_info = if descriptor.r#type == NetDeviceType::Wireless {
+            let wireless_info = if descriptor.kind == NetDeviceType::Wireless {
                 unsafe { Self::wireless_info(device_proxy) }
             } else {
                 None
@@ -337,7 +410,11 @@ impl NetInfo {
                 wireless_info,
 
                 send_bps,
+                sent_bytes: send_bytes,
                 recv_bps,
+                recv_bytes: rec_bytes,
+
+                max_speed,
             });
         }
 
@@ -348,11 +425,32 @@ impl NetInfo {
         result
     }
 
-    fn device_type(device_if: &str) -> NetDeviceType {
-        if device_if.starts_with("en") {
+    fn device_kind(device_if: &str) -> NetDeviceType {
+        if device_if.starts_with("bn") {
+            NetDeviceType::Bluetooth
+        } else if device_if.starts_with("br") || device_if.starts_with("virbr") {
+            NetDeviceType::Bridge
+        } else if device_if.starts_with("docker") {
+            NetDeviceType::Docker
+        } else if device_if.starts_with("eth") || device_if.starts_with("en") {
             NetDeviceType::Wired
-        } else if device_if.starts_with("wl") {
+        } else if device_if.starts_with("ib") {
+            NetDeviceType::InfiniBand
+        } else if device_if.starts_with("mp") {
+            NetDeviceType::Multipass
+        } else if device_if.starts_with("veth") {
+            NetDeviceType::Virtual
+        } else if device_if.starts_with("vpn") || device_if.starts_with("wg") {
+            NetDeviceType::VPN
+        } else if device_if.starts_with("wl") || device_if.starts_with("ww") {
             NetDeviceType::Wireless
+        } else if device_if.starts_with("mlan") {
+            let path = Path::new("/sys/class/net").join(device_if).join("wireless");
+            if path.exists() {
+                NetDeviceType::Wireless
+            } else {
+                NetDeviceType::Other
+            }
         } else {
             NetDeviceType::Other
         }
@@ -565,6 +663,17 @@ impl NetInfo {
         result
     }
 
+    fn get_max_speed(if_name: &str) -> u64 {
+        let speed = std::fs::read_to_string(format!("/sys/class/net/{}/speed", if_name));
+
+        if let Ok(str) = speed {
+            // Convert from megabits to bytes
+            (str.trim().parse::<u64>().unwrap_or(0) / 8) * 1_000_000
+        } else {
+            0
+        }
+    }
+
     fn tx_rx_bytes(if_name: &str) -> (u64, u64) {
         let tx_bytes =
             std::fs::read_to_string(format!("/sys/class/net/{}/statistics/tx_bytes", if_name));
@@ -761,7 +870,7 @@ impl NetInfo {
                         .map_or("Unknown error", |s| s)
                         .to_owned();
 
-                    g_critical!(
+                    g_debug!(
                         "MissionCenter::NetInfo",
                         "Failed to create udev device from {:?}. {}",
                         udi,
@@ -853,7 +962,7 @@ impl NetInfo {
         if device_path_variant.is_null() {
             if !error.is_null() {
                 let error: Error = unsafe { from_glib_full(error) };
-                g_critical!(
+                g_debug!(
                     "MissionCenter::NetInfo",
                     "Failed to get device info for {:?}: {}",
                     device_if,
@@ -919,7 +1028,7 @@ impl NetInfo {
         if variant.is_null() {
             if !error.is_null() {
                 let error: Error = from_glib_full(error);
-                g_critical!(
+                g_debug!(
                     "MissionCenter::NetInfo",
                     "Failed to get property {:?}: {}",
                     CStr::from_ptr(property.as_ptr() as _),

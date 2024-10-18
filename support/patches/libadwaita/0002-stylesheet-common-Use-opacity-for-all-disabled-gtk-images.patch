@@ -1,0 +1,24 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Tue, 21 Mar 2023 00:58:34 +0100
+Subject: stylesheet/common: Use opacity for all disabled gtk images
+
+Origin: https://gitlab.gnome.org/GNOME/libadwaita/-/merge_requests/814
+---
+ src/stylesheet/_common.scss | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/stylesheet/_common.scss b/src/stylesheet/_common.scss
+index b3bab72..ea3d4ae 100644
+--- a/src/stylesheet/_common.scss
++++ b/src/stylesheet/_common.scss
+@@ -34,6 +34,10 @@ dnd {
+   -gtk-icon-size: 32px;
+ }
+ 
++image:disabled {
++  -gtk-icon-filter: opacity($disabled_opacity);
++}
++
+ picture:disabled {
+   opacity: $disabled_opacity;
+ }

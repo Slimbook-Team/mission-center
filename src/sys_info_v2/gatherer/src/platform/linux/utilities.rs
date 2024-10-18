@@ -44,8 +44,6 @@ impl PlatformUtilitiesExt for LinuxPlatformUtilities {
                 }
             };
 
-            // Second create a rule to match messages we want to receive; in this example we add no
-            // further requirements, so all messages will match
             let mut rule = MatchRule::new();
             rule.strict_sender = true;
             rule.sender = Some("org.freedesktop.DBus".into());
@@ -53,7 +51,6 @@ impl PlatformUtilitiesExt for LinuxPlatformUtilities {
             rule.path = Some("/org/freedesktop/DBus".into());
             rule.member = Some("NameLost".into());
 
-            // Try matching using new scheme
             let proxy = c.with_proxy(
                 "org.freedesktop.DBus",
                 "/org/freedesktop/DBus",

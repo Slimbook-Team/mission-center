@@ -1,0 +1,351 @@
+/* ui/services_page/details_dialog.blp
+ *
+ * Copyright 2024 Romeo Calota
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+using Gtk 4.0;
+using Adw 1;
+
+template $DetailsDialog: Adw.Dialog {
+  Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {
+      title-widget: Label {
+        styles [
+          "heading"
+        ]
+
+        label: _("Service Details");
+      };
+    }
+
+    Adw.Clamp {
+      ScrolledWindow {
+        hscrollbar-policy: never;
+        propagate-natural-height: true;
+
+        child: Box {
+          margin-start: 20;
+          margin-end: 20;
+          margin-top: 20;
+          margin-bottom: 20;
+
+          orientation: vertical;
+          spacing: 32;
+
+          Adw.PreferencesGroup group_state {
+            hexpand: true;
+
+            title: _("State");
+            description: _("The current state of the service");
+
+            header-suffix: Box {
+              spacing: 5;
+
+              valign: end;
+
+              Box box_buttons {
+                styles [
+                  "linked"
+                ]
+
+                homogeneous: true;
+
+                Button start {
+                  action-name: "win.selected-svc-start";
+
+                  child: Box {
+                    spacing: 5;
+
+                    halign: center;
+
+                    Image {
+                      icon-name: "media-playback-start-symbolic";
+                    }
+                  };
+                }
+
+                Button stop {
+                  action-name: "win.selected-svc-stop";
+
+                  child: Box {
+                    spacing: 5;
+
+                    halign: center;
+
+                    Image {
+                      icon-name: "media-playback-stop-symbolic";
+                    }
+                  };
+                }
+              }
+
+              Button restart {
+                action-name: "win.selected-svc-restart";
+
+                child: Box {
+                  spacing: 5;
+
+                  halign: center;
+
+                  Image {
+                    icon-name: "media-playlist-repeat-symbolic";
+                  }
+                };
+              }
+            };
+
+            Adw.PreferencesRow {
+              activatable: false;
+
+              child: Box {
+                height-request: 50;
+                margin-start: 12;
+                margin-end: 12;
+
+                spacing: 12;
+
+                Label {
+                  hexpand: true;
+                  halign: start;
+
+                  label: _("Name");
+                }
+
+                Label label_name {
+                  styles [
+                    "dim-label"
+                  ]
+
+                  ellipsize: middle;
+
+                  hexpand: true;
+                  halign: end;
+                }
+              };
+            }
+
+            Adw.PreferencesRow {
+              activatable: false;
+
+              child: Box {
+                height-request: 50;
+                margin-start: 12;
+                margin-end: 12;
+
+                spacing: 12;
+
+                Label {
+                  hexpand: true;
+                  halign: start;
+
+                  label: _("Description");
+                }
+
+                Label label_description {
+                  styles [
+                    "dim-label"
+                  ]
+
+                  ellipsize: middle;
+
+                  hexpand: true;
+                  halign: end;
+                }
+              };
+            }
+
+            Adw.PreferencesRow {
+              activatable: false;
+
+              child: Box {
+                height-request: 50;
+                margin-start: 12;
+                margin-end: 12;
+
+                spacing: 12;
+
+                Label {
+                  hexpand: true;
+                  halign: start;
+
+                  label: _("Status");
+                }
+
+                Label label_running {
+                  styles [
+                    "dim-label"
+                  ]
+
+                  ellipsize: middle;
+
+                  hexpand: true;
+                  halign: end;
+
+                  label: "";
+                }
+              };
+            }
+
+            Adw.SwitchRow switch_enabled {
+              title: _("Enabled");
+            }
+          }
+
+          Adw.PreferencesGroup group_process {
+            hexpand: true;
+
+            title: _("Process");
+            description: _("Process and user information");
+
+            Adw.PreferencesRow {
+              activatable: false;
+
+              child: Box {
+                height-request: 50;
+                margin-start: 12;
+                margin-end: 12;
+
+                spacing: 12;
+
+                Label {
+                  hexpand: true;
+                  halign: start;
+
+                  label: _("Process ID");
+                }
+
+                Label label_pid {
+                  styles [
+                    "dim-label"
+                  ]
+
+                  ellipsize: middle;
+
+                  hexpand: true;
+                  halign: end;
+
+                  label: _("N/A");
+                }
+              };
+            }
+
+            Adw.PreferencesRow {
+              activatable: false;
+
+              child: Box {
+                height-request: 50;
+                margin-start: 12;
+                margin-end: 12;
+
+                spacing: 12;
+
+                Label {
+                  hexpand: true;
+                  halign: start;
+
+                  label: _("User");
+                }
+
+                Label label_user {
+                  styles [
+                    "dim-label"
+                  ]
+
+                  ellipsize: middle;
+
+                  hexpand: true;
+                  halign: end;
+
+                  label: _("N/A");
+                }
+              };
+            }
+
+            Adw.PreferencesRow {
+              activatable: false;
+
+              child: Box {
+                height-request: 50;
+                margin-start: 12;
+                margin-end: 12;
+
+                spacing: 12;
+
+                Label {
+                  hexpand: true;
+                  halign: start;
+
+                  label: _("Group");
+                }
+
+                Label label_group {
+                  styles [
+                    "dim-label"
+                  ]
+
+                  ellipsize: middle;
+
+                  hexpand: true;
+                  halign: end;
+
+                  label: _("N/A");
+                }
+              };
+            }
+          }
+
+          Expander logs_expander {
+            label-widget: Label {
+              styles [
+                "heading"
+              ]
+
+              label: _("Logs");
+            };
+
+            Overlay logs_overlay {
+              child: TextView {
+                styles [
+                  "card",
+                ]
+
+                hexpand: true;
+                vexpand: true;
+
+                margin-top: 12;
+
+                top-margin: 12;
+                bottom-margin: 12;
+                left-margin: 12;
+                right-margin: 12;
+
+                monospace: true;
+                editable: false;
+                wrap-mode: word;
+
+                buffer: TextBuffer logs_buffer {
+                };
+              };
+            }
+          }
+        };
+      }
+    }
+  }
+}

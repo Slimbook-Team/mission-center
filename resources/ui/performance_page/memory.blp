@@ -26,116 +26,149 @@ template $PerformancePageMemory: Box {
 
   WindowHandle {
     child: Box description {
-      orientation: vertical;
-      spacing: 7;
       hexpand: true;
+      margin-bottom: 7;
 
-      Box {
-        spacing: 20;
+      Label {
+        styles [
+          "title-1",
+        ]
 
-        Label {
-          styles [
-            "title-1",
-          ]
+        hexpand: true;
+        halign: start;
 
-          hexpand: true;
-          halign: start;
-
-          label: _("Memory");
-        }
-
-        Label total_ram {
-          styles [
-            "title-3",
-          ]
-
-          halign: end;
-          ellipsize: middle;
-        }
+        label: _("Memory");
       }
 
-      Box {
-        Label {
-          styles [
-            "caption",
-          ]
+      Label total_ram {
+        styles [
+          "title-3",
+        ]
 
-          hexpand: true;
-          halign: start;
-          label: _("Memory usage");
-        }
-
-        Label {
-          styles [
-            "caption",
-          ]
-
-          label: bind total_ram.label;
-        }
+        halign: end;
+        ellipsize: middle;
       }
     };
   }
 
   Adw.ToastOverlay toast_overlay {
-    child: Box {
+    child: Box big_box {
       orientation: vertical;
-      $GraphWidget usage_graph {
-        vexpand: true;
-        hexpand: true;
+      homogeneous: true;
+      margin-bottom: 10;
+      spacing: 10;
 
-        width-request: 100;
-        height-request: 50;
-
-        base-color: bind template.base-color;
-        data-set-count: 1;
-        scroll: true;
-      }
-
-      Box {
-        margin-top: 2;
-        margin-bottom: 10;
-
-        Label graph_max_duration {
-          styles [
-            "caption",
-          ]
-
-          hexpand: true;
-          halign: start;
-          valign: start;
-        }
-
-        Label {
-          styles [
-            "caption",
-          ]
-
-          valign: start;
-          label: "0";
-        }
-      }
-
-      Label {
-        styles [
-          "caption",
-        ]
-
-        hexpand: true;
-        halign: start;
-        valign: start;
-        label: _("Memory composition");
-      }
-
-      Adw.Clamp {
+      Box mem_box {
         orientation: vertical;
-        margin-bottom: 10;
 
-        width-request: 100;
-        maximum-size: 50;
+        has-tooltip: true;
 
-        child: $MemoryCompositionWidget mem_composition {
+        Box {
+          Label {
+            styles [
+              "caption",
+            ]
+            label: _("Memory usage over ");
+          }
+
+          Label graph_max_duration {
+            styles [
+              "caption",
+            ]
+
+            hexpand: true;
+            halign: start;
+            valign: start;
+          }
+
+          Label {
+            styles [
+              "caption",
+            ]
+
+            label: bind total_ram.label;
+          }
+        }
+
+        $GraphWidget usage_graph {
+          vexpand: true;
+          hexpand: true;
+
+          width-request: 100;
+          height-request: 50;
+
           base-color: bind template.base-color;
-        };
+          data-set-count: 3;
+          scroll: true;
+        }
+      }
+      Box {
+        orientation: vertical;
+        spacing: 10;
+        Box {
+          orientation: vertical;
+          Box swap_box {
+            Label {
+              styles [
+                "caption",
+              ]
+              label: _("Swap usage over ");
+            }
+            Label {
+              styles [
+                "caption",
+              ]
+
+              hexpand: true;
+              halign: start;
+              valign: start;
+
+              label: bind graph_max_duration.label;
+            }
+            Label total_swap {
+              styles [
+                "caption",
+              ]
+            }
+          }
+
+          $GraphWidget swap_usage_graph {
+            vexpand: true;
+            hexpand: true;
+
+            width-request: 100;
+            height-request: 50;
+
+            base-color: bind template.memory-color;
+            data-set-count: 1;
+            scroll: true;
+          }
+        }
+
+        Box mem_composition_box {
+          orientation: vertical;
+          Label {
+            styles [
+              "caption",
+            ]
+
+            hexpand: true;
+            halign: start;
+            valign: start;
+            label: _("Memory composition");
+          }
+
+          Adw.Clamp {
+            orientation: vertical;
+
+            width-request: 100;
+            maximum-size: 50;
+
+            child: $MemoryCompositionWidget mem_composition {
+              base-color: bind template.base-color;
+            };
+          }
+        }
       }
     };
   }
@@ -147,6 +180,17 @@ template $PerformancePageMemory: Box {
 }
 
 menu context_menu_model {
+  section {
+    item {
+      label: _("Show Memory Composition");
+      action: "graph.memory_composition";
+    }
+    item {
+      label: _("Show Swap Usage");
+      action: "graph.swap_usage";
+    }
+  }
+
   section {
     item {
       label: _("Graph _Summary View");
@@ -167,7 +211,7 @@ menu context_menu_model {
       }
 
       item {
-        label: _("_Disk");
+        label: _("_Drive");
         action: "graph.disk";
       }
 
@@ -179,6 +223,11 @@ menu context_menu_model {
       item {
         label: _("_GPU");
         action: "graph.gpu";
+      }
+
+      item {
+        label: _("_Fan");
+        action: "graph.fan";
       }
     }
   }

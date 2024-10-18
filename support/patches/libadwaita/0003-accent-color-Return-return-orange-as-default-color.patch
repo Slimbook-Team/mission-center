@@ -1,0 +1,136 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Wed, 14 Aug 2024 15:20:44 -0400
+Subject: accent-color: Return return orange as default color
+
+---
+ src/adw-accent-color.c         |  2 +-
+ src/adw-settings-impl-macos.c  |  2 +-
+ src/adw-settings-impl-portal.c |  2 +-
+ src/adw-settings-impl.c        |  2 +-
+ src/adw-settings.c             | 10 ++++++----
+ src/adw-style-manager.c        |  4 ++--
+ 6 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/adw-accent-color.c b/src/adw-accent-color.c
+index f49b63b..fa937aa 100644
+--- a/src/adw-accent-color.c
++++ b/src/adw-accent-color.c
+@@ -161,7 +161,7 @@ adw_accent_color_nearest_from_rgba (GdkRGBA *original_color)
+ {
+   float L, c, h;
+ 
+-  g_return_val_if_fail (original_color != NULL, ADW_ACCENT_COLOR_BLUE);
++  g_return_val_if_fail (original_color != NULL, ADW_ACCENT_COLOR_ORANGE);
+ 
+   adw_rgb_to_oklch (original_color->red,
+                     original_color->green,
+diff --git a/src/adw-settings-impl-macos.c b/src/adw-settings-impl-macos.c
+index 75b0fd9..2212e10 100644
+--- a/src/adw-settings-impl-macos.c
++++ b/src/adw-settings-impl-macos.c
+@@ -57,7 +57,7 @@ get_accent_color (void)
+     return adw_accent_color_nearest_from_rgba (&rgba);
+   }
+ 
+-  return ADW_ACCENT_COLOR_BLUE;
++  return ADW_ACCENT_COLOR_ORANGE;
+ }
+ 
+ -(void)appDidChangeAccentColor:(NSNotification *)notification
+diff --git a/src/adw-settings-impl-portal.c b/src/adw-settings-impl-portal.c
+index 6984aa1..00725b0 100644
+--- a/src/adw-settings-impl-portal.c
++++ b/src/adw-settings-impl-portal.c
+@@ -127,7 +127,7 @@ get_fdo_accent_color (GVariant *variant)
+   g_variant_get (variant, "(ddd)", &r, &g, &b);
+ 
+   if (r < 0 || g < 0 || b < 0 || r > 1 || g > 1 || b > 1)
+-    return ADW_ACCENT_COLOR_BLUE;
++    return ADW_ACCENT_COLOR_ORANGE;
+ 
+   rgba.red = r;
+   rgba.green = g;
+diff --git a/src/adw-settings-impl.c b/src/adw-settings-impl.c
+index 536eca6..e8b402e 100644
+--- a/src/adw-settings-impl.c
++++ b/src/adw-settings-impl.c
+@@ -192,7 +192,7 @@ adw_settings_impl_get_accent_color (AdwSettingsImpl *self)
+ {
+   AdwSettingsImplPrivate *priv  = adw_settings_impl_get_instance_private (self);
+ 
+-  g_return_val_if_fail (ADW_IS_SETTINGS_IMPL (self), ADW_ACCENT_COLOR_BLUE);
++  g_return_val_if_fail (ADW_IS_SETTINGS_IMPL (self), ADW_ACCENT_COLOR_ORANGE);
+ 
+   return priv->accent_color;
+ }
+diff --git a/src/adw-settings.c b/src/adw-settings.c
+index 4187f79..a8ead17 100644
+--- a/src/adw-settings.c
++++ b/src/adw-settings.c
+@@ -199,6 +199,8 @@ adw_settings_constructed (GObject *object)
+ 
+   G_OBJECT_CLASS (adw_settings_parent_class)->constructed (object);
+ 
++  self->accent_color = ADW_ACCENT_COLOR_ORANGE;
++
+   init_debug (self, &found_color_scheme, &found_high_contrast, &found_accent_colors);
+ 
+   if (!found_color_scheme || !found_high_contrast || !found_accent_colors) {
+@@ -319,7 +321,7 @@ adw_settings_class_init (AdwSettingsClass *klass)
+   props[PROP_ACCENT_COLOR] =
+     g_param_spec_enum ("accent-color", NULL, NULL,
+                        ADW_TYPE_ACCENT_COLOR,
+-                       ADW_ACCENT_COLOR_BLUE,
++                       ADW_ACCENT_COLOR_ORANGE,
+                        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+ 
+   g_object_class_install_properties (object_class, LAST_PROP, props);
+@@ -386,7 +388,7 @@ adw_settings_get_system_supports_accent_colors (AdwSettings *self)
+ AdwAccentColor
+ adw_settings_get_accent_color (AdwSettings *self)
+ {
+-  g_return_val_if_fail (ADW_IS_SETTINGS (self), ADW_ACCENT_COLOR_BLUE);
++  g_return_val_if_fail (ADW_IS_SETTINGS (self), ADW_ACCENT_COLOR_ORANGE);
+ 
+   if (self->override)
+     return self->accent_color_override;
+@@ -433,7 +435,7 @@ adw_settings_end_override (AdwSettings *self)
+   self->color_scheme_override = ADW_SYSTEM_COLOR_SCHEME_DEFAULT;
+   self->high_contrast_override = FALSE;
+   self->system_supports_accent_colors_override = FALSE;
+-  self->accent_color_override = ADW_ACCENT_COLOR_BLUE;
++  self->accent_color_override = ADW_ACCENT_COLOR_ORANGE;
+ 
+   if (notify_system_supports_color_scheme)
+     g_object_notify_by_pspec (G_OBJECT (self), props[PROP_SYSTEM_SUPPORTS_COLOR_SCHEMES]);
+@@ -513,7 +515,7 @@ adw_settings_override_system_supports_accent_colors (AdwSettings *self,
+     return;
+ 
+   if (!system_supports_accent_colors)
+-    adw_settings_override_accent_color (self, ADW_ACCENT_COLOR_BLUE);
++    adw_settings_override_accent_color (self, ADW_ACCENT_COLOR_ORANGE);
+ 
+   self->system_supports_accent_colors_override = system_supports_accent_colors;
+ 
+diff --git a/src/adw-style-manager.c b/src/adw-style-manager.c
+index 71f6915..1206636 100644
+--- a/src/adw-style-manager.c
++++ b/src/adw-style-manager.c
+@@ -583,7 +583,7 @@ adw_style_manager_class_init (AdwStyleManagerClass *klass)
+   props[PROP_ACCENT_COLOR] =
+     g_param_spec_enum ("accent-color", NULL, NULL,
+                        ADW_TYPE_ACCENT_COLOR,
+-                       ADW_ACCENT_COLOR_BLUE,
++                       ADW_ACCENT_COLOR_ORANGE,
+                        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+ 
+   /**
+@@ -887,7 +887,7 @@ adw_style_manager_get_system_supports_accent_colors (AdwStyleManager *self)
+ AdwAccentColor
+ adw_style_manager_get_accent_color (AdwStyleManager *self)
+ {
+-  g_return_val_if_fail (ADW_IS_STYLE_MANAGER (self), ADW_ACCENT_COLOR_BLUE);
++  g_return_val_if_fail (ADW_IS_STYLE_MANAGER (self), ADW_ACCENT_COLOR_ORANGE);
+ 
+   return adw_settings_get_accent_color (self->settings);
+ }

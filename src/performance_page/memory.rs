@@ -20,15 +20,15 @@
 
 use std::cell::{Cell, OnceCell};
 
-use adw;
-use adw::subclass::prelude::*;
-use glib::{clone, ParamSpec, Properties, Value};
+use adw::{self, subclass::prelude::*};
+use glib::{ParamSpec, Properties, Value};
 use gtk::{gio, glib, prelude::*};
 
-use crate::application::INTERVAL_STEP;
-use crate::i18n::*;
-
-use super::widgets::{GraphWidget, MemoryCompositionWidget};
+use super::{
+    widgets::{GraphWidget, MemoryCompositionWidget},
+    PageExt,
+};
+use crate::{application::INTERVAL_STEP, i18n::*, settings};
 
 mod imp {
     use super::*;
@@ -49,15 +49,35 @@ mod imp {
         #[template_child]
         pub mem_composition: TemplateChild<MemoryCompositionWidget>,
         #[template_child]
+        pub mem_composition_box: TemplateChild<gtk::Box>,
+        #[template_child]
         pub context_menu: TemplateChild<gtk::Popover>,
+        #[template_child]
+        pub big_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub swap_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub mem_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub swap_usage_graph: TemplateChild<GraphWidget>,
+        #[template_child]
+        pub total_swap: TemplateChild<gtk::Label>,
 
         #[property(get, set)]
         base_color: Cell<gtk::gdk::RGBA>,
+        #[property(get, set)]
+        memory_color: Cell<gtk::gdk::RGBA>,
         #[property(get, set)]
         summary_mode: Cell<bool>,
 
         #[property(get = Self::infobar_content, type = Option < gtk::Widget >)]
         pub infobar_content: OnceCell<gtk::Box>,
+
+        pub tooltip_widget: OnceCell<gtk::Box>,
+        pub tt_label_in_use: OnceCell<gtk::Label>,
+        pub tt_label_modified: OnceCell<gtk::Label>,
+        pub tt_label_standby: OnceCell<gtk::Label>,
+        pub tt_label_free: OnceCell<gtk::Label>,
 
         pub in_use: OnceCell<gtk::Label>,
         pub available: OnceCell<gtk::Label>,
@@ -69,6 +89,9 @@ mod imp {
         pub slots_used: OnceCell<gtk::Label>,
         pub form_factor: OnceCell<gtk::Label>,
         pub ram_type: OnceCell<gtk::Label>,
+
+        pub legend_used: OnceCell<gtk::Picture>,
+        pub legend_commited: OnceCell<gtk::Picture>,
     }
 
     impl Default for PerformancePageMemory {
@@ -79,12 +102,25 @@ mod imp {
                 usage_graph: Default::default(),
                 graph_max_duration: Default::default(),
                 mem_composition: Default::default(),
+                mem_composition_box: Default::default(),
                 context_menu: Default::default(),
+                big_box: Default::default(),
+                swap_box: Default::default(),
+                mem_box: Default::default(),
+                swap_usage_graph: Default::default(),
+                total_swap: Default::default(),
 
                 base_color: Cell::new(gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 1.0)),
+                memory_color: Cell::new(gtk::gdk::RGBA::new(0.0, 0.0, 0.0, 1.0)),
                 summary_mode: Cell::new(false),
 
                 infobar_content: Default::default(),
+
+                tooltip_widget: Default::default(),
+                tt_label_in_use: Default::default(),
+                tt_label_modified: Default::default(),
+                tt_label_standby: Default::default(),
+                tt_label_free: Default::default(),
 
                 in_use: Default::default(),
                 available: Default::default(),
@@ -96,6 +132,9 @@ mod imp {
                 slots_used: Default::default(),
                 form_factor: Default::default(),
                 ram_type: Default::default(),
+
+                legend_used: Default::default(),
+                legend_commited: Default::default(),
             }
         }
     }
@@ -108,34 +147,125 @@ mod imp {
 
     impl PerformancePageMemory {
         fn configure_actions(this: &super::PerformancePageMemory) {
+            use gtk::glib::*;
             let actions = gio::SimpleActionGroup::new();
             this.insert_action_group("graph", Some(&actions));
 
+            let settings = settings!();
+            let show_memory_composition =
+                settings.boolean("performance-page-memory-composition-visible");
+            let show_swap = settings.boolean("performance-page-memory-swap-visible");
+
             let action = gio::SimpleAction::new("copy", None);
-            action.connect_activate(clone!(@weak this => move |_, _| {
-                let clipboard = this.clipboard();
-                clipboard.set_text(this.imp().data_summary().as_str());
-            }));
+            action.connect_activate({
+                let this = this.downgrade();
+                move |_, _| {
+                    if let Some(this) = this.upgrade() {
+                        let clipboard = this.clipboard();
+                        clipboard.set_text(this.imp().data_summary().as_str());
+                    }
+                }
+            });
+            actions.add_action(&action);
+
+            let action = gio::SimpleAction::new_stateful(
+                "memory_composition",
+                None,
+                &glib::Variant::from(show_memory_composition),
+            );
+            action.connect_activate({
+                let this = this.downgrade();
+                move |action, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
+                    let mem_composition = &this.mem_composition_box;
+
+                    let visible = !action
+                        .state()
+                        .and_then(|v| v.get::<bool>())
+                        .unwrap_or(false);
+
+                    mem_composition.set_visible(visible);
+
+                    action.set_state(&glib::Variant::from(visible));
+
+                    settings!()
+                        .set_boolean("performance-page-memory-composition-visible", visible)
+                        .unwrap_or_else(|_| {
+                            g_critical!(
+                                "MissionCenter::PerformancePage",
+                                "Failed to save show composition graph"
+                            );
+                        });
+                }
+            });
+            actions.add_action(&action);
+
+            let action = gio::SimpleAction::new_stateful(
+                "swap_usage",
+                None,
+                &glib::Variant::from(show_swap),
+            );
+            action.connect_activate({
+                let this = this.downgrade();
+                move |action, _| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
+                    let visible = !action
+                        .state()
+                        .and_then(|v| v.get::<bool>())
+                        .unwrap_or(false);
+
+                    this.big_box.set_homogeneous(visible);
+                    this.big_box.set_spacing(if visible { 10 } else { 0 });
+                    this.swap_box.set_visible(visible);
+                    this.swap_usage_graph.set_visible(visible);
+
+                    action.set_state(&glib::Variant::from(visible));
+
+                    settings!()
+                        .set_boolean("performance-page-memory-swap-visible", visible)
+                        .unwrap_or_else(|_| {
+                            g_critical!(
+                                "MissionCenter::PerformancePage",
+                                "Failed to save show swap graph"
+                            );
+                        });
+                }
+            });
             actions.add_action(&action);
         }
 
         fn configure_context_menu(this: &super::PerformancePageMemory) {
             let right_click_controller = gtk::GestureClick::new();
             right_click_controller.set_button(3); // Secondary click (AKA right click)
-            right_click_controller.connect_released(
-                clone!(@weak this => move |_click, _n_press, x, y| {
-                    this
-                        .imp()
-                        .context_menu
+            right_click_controller.connect_released({
+                let this = this.downgrade();
+                move |_click, _n_press, x, y| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return,
+                    };
+                    let this = this.imp();
+
+                    this.context_menu
                         .set_pointing_to(Some(&gtk::gdk::Rectangle::new(
                             x.round() as i32,
                             y.round() as i32,
                             1,
                             1,
                         )));
-                    this.imp().context_menu.popup();
-                }),
-            );
+                    this.context_menu.popup();
+                }
+            });
             this.add_controller(right_click_controller);
         }
     }
@@ -147,9 +277,37 @@ mod imp {
         ) -> bool {
             let this = this.imp();
 
+            let settings = settings!();
+            let show_memory_composition =
+                settings.boolean("performance-page-memory-composition-visible");
+            let show_swap = settings.boolean("performance-page-memory-swap-visible");
+
             this.usage_graph
                 .set_value_range_max(readings.mem_info.mem_total as f32);
+            this.swap_usage_graph
+                .set_value_range_max(readings.mem_info.swap_total as f32);
             let t = this.obj().clone();
+            let swap_total = readings.mem_info.swap_total;
+
+            if swap_total == 0 || !show_swap {
+                this.big_box.set_homogeneous(false);
+                this.big_box.set_spacing(0);
+                this.swap_box.set_visible(false);
+                this.swap_usage_graph.set_visible(false);
+            }
+            if !show_memory_composition {
+                this.mem_composition_box.set_visible(false);
+            }
+
+            if let Some(legend_commited) = this.legend_commited.get() {
+                legend_commited
+                    .set_resource(Some("/io/missioncenter/MissionCenter/line-dashed-mem.svg"));
+            }
+            if let Some(legend_used) = this.legend_used.get() {
+                legend_used
+                    .set_resource(Some("/io/missioncenter/MissionCenter/line-solid-mem.svg"));
+            }
+
             this.usage_graph.connect_local("resize", true, move |_| {
                 let this = t.imp();
 
@@ -166,6 +324,9 @@ mod imp {
                 this.usage_graph
                     .set_vertical_line_count((width * (a / b) / 30.).round().max(5.) as u32);
 
+                this.swap_usage_graph
+                    .set_vertical_line_count((width * (a / b) / 30.).round().max(5.) as u32);
+
                 None
             });
 
@@ -175,6 +336,13 @@ mod imp {
                 total_mem.0,
                 total_mem.1,
                 if total_mem.1.is_empty() { "" } else { "i" }
+            ));
+            let total_swap = crate::to_human_readable(readings.mem_info.swap_total as _, 1024.);
+            this.total_swap.set_text(&format!(
+                "{:.2} {}{}B",
+                total_swap.0,
+                total_swap.1,
+                if total_swap.1.is_empty() { "" } else { "i" }
             ));
 
             true
@@ -188,8 +356,17 @@ mod imp {
             let mem_info = &readings.mem_info;
 
             {
-                let used = mem_info.mem_total - mem_info.mem_available;
-                this.usage_graph.add_data_point(0, used as _);
+                let used = mem_info
+                    .mem_total
+                    .saturating_sub(mem_info.mem_available + mem_info.dirty);
+                let dirty = mem_info.mem_total.saturating_sub(mem_info.mem_available);
+                let standby = mem_info.mem_total.saturating_sub(used + mem_info.mem_free);
+                this.usage_graph.add_data_point(0, mem_info.committed as _);
+                this.usage_graph.add_data_point(1, dirty as _);
+                this.usage_graph.add_data_point(2, used as _);
+
+                let swap_used = mem_info.swap_total - mem_info.swap_free;
+                this.swap_usage_graph.add_data_point(0, swap_used as _);
 
                 this.mem_composition.update_memory_information(mem_info);
 
@@ -213,7 +390,7 @@ mod imp {
                     ));
                 }
 
-                let committed = crate::to_human_readable(mem_info.committed_as as _, 1024.);
+                let committed = crate::to_human_readable(mem_info.committed as _, 1024.);
                 if let Some(cm) = this.committed.get() {
                     cm.set_text(&format!(
                         "{:.2} {}{}B",
@@ -255,6 +432,46 @@ mod imp {
                         if swap_used.1.is_empty() { "" } else { "i" }
                     ));
                 }
+
+                let free = crate::to_human_readable(mem_info.mem_free as _, 1024.);
+                let dirty = crate::to_human_readable(mem_info.dirty as _, 1024.);
+                let standby = crate::to_human_readable(standby as _, 1024.);
+
+                if let Some(l) = this.tt_label_in_use.get() {
+                    l.set_text(&format!(
+                        "{:.2} {}{}B",
+                        used.0,
+                        used.1,
+                        if used.1.is_empty() { "" } else { "i" }
+                    ))
+                }
+
+                if let Some(l) = this.tt_label_modified.get() {
+                    l.set_text(&format!(
+                        "{:.2} {}{}B",
+                        dirty.0,
+                        dirty.1,
+                        if dirty.1.is_empty() { "" } else { "i" }
+                    ))
+                }
+
+                if let Some(l) = this.tt_label_standby.get() {
+                    l.set_text(&format!(
+                        "{:.2} {}{}B",
+                        standby.0,
+                        standby.1,
+                        if standby.1.is_empty() { "" } else { "i" }
+                    ))
+                }
+
+                if let Some(l) = this.tt_label_free.get() {
+                    l.set_text(&format!(
+                        "{:.2} {}{}B",
+                        free.0,
+                        free.1,
+                        if free.1.is_empty() { "" } else { "i" }
+                    ))
+                }
             }
 
             true
@@ -275,7 +492,7 @@ mod imp {
     Cached:         {}
     Swap available: {}
     Swap used:      {}
-    
+
     Speed:       {}
     Slots used:  {}
     Form factor: {}
@@ -381,16 +598,70 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            let obj = self.obj();
-            let this = obj.upcast_ref::<super::PerformancePageMemory>().clone();
+            let this = self.obj().clone();
+
+            self.usage_graph.set_filled(0, false);
+            self.usage_graph.set_dashed(0, true);
+            self.usage_graph.set_filled(1, false);
 
             Self::configure_actions(&this);
             Self::configure_context_menu(&this);
 
+            self.mem_box.connect_query_tooltip({
+                let this = self.obj().downgrade();
+                move |_, _, _, _, tooltip| {
+                    let this = match this.upgrade() {
+                        Some(this) => this,
+                        None => return false,
+                    };
+                    let this = this.imp();
+
+                    if let Some(tooltip_widget) = this.tooltip_widget.get() {
+                        tooltip.set_custom(Some(tooltip_widget));
+                        return true;
+                    }
+
+                    false
+                }
+            });
+
+            let tooltip_content_builder = gtk::Builder::from_resource(
+                "/io/missioncenter/MissionCenter/ui/performance_page/memory_info_tooltip.ui",
+            );
+
+            let _ = self.tooltip_widget.set(
+                tooltip_content_builder
+                    .object::<gtk::Box>("root")
+                    .expect("Could not find `root` object in tooltip widget"),
+            );
+
+            let _ = self.tt_label_in_use.set(
+                tooltip_content_builder
+                    .object::<gtk::Label>("label_in_use")
+                    .expect("Could not find `label_in_use` object in tooltip widget"),
+            );
+
+            let _ = self.tt_label_modified.set(
+                tooltip_content_builder
+                    .object::<gtk::Label>("label_modified")
+                    .expect("Could not find `label_modified` object in tooltip widget"),
+            );
+
+            let _ = self.tt_label_standby.set(
+                tooltip_content_builder
+                    .object::<gtk::Label>("label_standby")
+                    .expect("Could not find `label_standby` object in tooltip widget"),
+            );
+
+            let _ = self.tt_label_free.set(
+                tooltip_content_builder
+                    .object::<gtk::Label>("label_free")
+                    .expect("Could not find `label_free` object in tooltip widget"),
+            );
+
             let sidebar_content_builder = gtk::Builder::from_resource(
                 "/io/missioncenter/MissionCenter/ui/performance_page/memory_details.ui",
             );
-
             let _ = self.infobar_content.set(
                 sidebar_content_builder
                     .object::<gtk::Box>("root")
@@ -426,6 +697,16 @@ mod imp {
                 sidebar_content_builder
                     .object::<gtk::Label>("swap_used")
                     .expect("Could not find `swap_used` object in details pane"),
+            );
+            let _ = self.legend_used.set(
+                sidebar_content_builder
+                    .object::<gtk::Picture>("legend_used")
+                    .expect("Could not find `legend_used` object in details pane"),
+            );
+            let _ = self.legend_commited.set(
+                sidebar_content_builder
+                    .object::<gtk::Picture>("legend_commited")
+                    .expect("Could not find `legend_commited` object in details pane"),
             );
 
             // Get memory device information using `load_memory_device_info()` from
@@ -541,6 +822,22 @@ glib::wrapper! {
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
+impl PageExt for PerformancePageMemory {
+    fn infobar_collapsed(&self) {
+        self.imp()
+            .infobar_content
+            .get()
+            .and_then(|ic| Some(ic.set_margin_top(10)));
+    }
+
+    fn infobar_uncollapsed(&self) {
+        self.imp()
+            .infobar_content
+            .get()
+            .and_then(|ic| Some(ic.set_margin_top(65)));
+    }
+}
+
 impl PerformancePageMemory {
     pub fn new(settings: &gio::Settings) -> Self {
         let this: Self = glib::Object::builder().build();
@@ -549,55 +846,99 @@ impl PerformancePageMemory {
             this: &PerformancePageMemory,
             settings: &gio::Settings,
         ) {
-            let data_points = settings.int("perfomance-page-data-points") as u32;
-            let graph_max_duration = (((settings.int("app-update-interval") as f64)
+            let this = this.imp();
+
+            let data_points = settings.int("performance-page-data-points") as u32;
+            let smooth = settings.boolean("performance-smooth-graphs");
+            let graph_max_duration = (((settings.uint64("app-update-interval-u64") as f64)
                 * INTERVAL_STEP)
                 * (data_points as f64))
                 .round() as u32;
 
-            let this = this.imp();
             let mins = graph_max_duration / 60;
-            let seconds_to_string = format!(
+            let seconds_to_string = &i18n_f(
                 "{} second{}",
-                graph_max_duration % 60,
-                if (graph_max_duration % 60) != 1 {
-                    "s"
-                } else {
-                    ""
-                }
+                &[
+                    &format!("{}", graph_max_duration % 60),
+                    if (graph_max_duration % 60) != 1 {
+                        "s"
+                    } else {
+                        ""
+                    },
+                ],
             );
-            let mins_to_string = format!("{:} minute{} ", mins, if mins > 1 { "s" } else { "" });
+            let mins_to_string = &i18n_f(
+                "{} minute{} ",
+                &[&format!("{:}", mins), if mins > 1 { "s" } else { "" }],
+            );
             this.graph_max_duration.set_text(&*format!(
                 "{}{}",
                 if mins > 0 {
-                    mins_to_string
+                    mins_to_string.clone()
                 } else {
                     "".to_string()
                 },
                 if graph_max_duration % 60 > 0 {
-                    seconds_to_string
+                    seconds_to_string.clone()
                 } else {
                     "".to_string()
                 }
             ));
 
             this.usage_graph.set_data_points(data_points);
+            this.swap_usage_graph.set_data_points(data_points);
+            this.usage_graph.set_smooth_graphs(smooth);
+            this.swap_usage_graph.set_smooth_graphs(smooth);
         }
         update_refresh_rate_sensitive_labels(&this, settings);
 
-        settings.connect_changed(
-            Some("perfomance-page-data-points"),
-            clone!(@weak this => move |settings, _| {
-                update_refresh_rate_sensitive_labels(&this, settings);
-            }),
-        );
+        settings.connect_changed(Some("performance-page-data-points"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
 
-        settings.connect_changed(
-            Some("app-update-interval"),
-            clone!(@weak this => move |settings, _| {
-                update_refresh_rate_sensitive_labels(&this, settings);
-            }),
-        );
+        settings.connect_changed(Some("app-update-interval-u64"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
+
+        settings.connect_changed(Some("performance-smooth-graphs"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    update_refresh_rate_sensitive_labels(&this, settings);
+                }
+            }
+        });
+
+        fn set_hidden(this: &PerformancePageMemory, settings: &gio::Settings) {
+            let visible = settings.boolean("performance-page-memory-swap-visible");
+
+            let this = this.imp();
+
+            this.big_box.set_homogeneous(visible);
+            this.big_box.set_spacing(if visible { 10 } else { 0 });
+            this.swap_box.set_visible(visible);
+            this.swap_usage_graph.set_visible(visible);
+            this.mem_box.set_has_tooltip(true);
+        }
+
+        settings.connect_changed(Some("performance-page-memory-swap-visible"), {
+            let this = this.downgrade();
+            move |settings, _| {
+                if let Some(this) = this.upgrade() {
+                    set_hidden(&this, settings);
+                }
+            }
+        });
 
         this
     }
@@ -608,19 +949,5 @@ impl PerformancePageMemory {
 
     pub fn update_readings(&self, readings: &crate::sys_info_v2::Readings) -> bool {
         imp::PerformancePageMemory::update_readings(self, readings)
-    }
-
-    pub fn infobar_collapsed(&self) {
-        self.imp()
-            .infobar_content
-            .get()
-            .and_then(|ic| Some(ic.set_margin_top(10)));
-    }
-
-    pub fn infobar_uncollapsed(&self) {
-        self.imp()
-            .infobar_content
-            .get()
-            .and_then(|ic| Some(ic.set_margin_top(65)));
     }
 }
