@@ -1,3 +1,9 @@
+mission-center (0.6.1+slimbook2) resolute; urgency=medium
+
+  * 26.04 release
+
+ -- Slimbook <dev@slimbook.es>  Tue, 28 Apr 2026 23:44:01 +0200
+
 mission-center (0.6.1+slimbook1) noble; urgency=medium
 
   * Based on 0.6.1 tag
